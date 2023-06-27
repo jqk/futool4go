@@ -1,4 +1,4 @@
-package fileutils
+package futool4go
 
 import (
 	"io"
