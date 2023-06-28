@@ -11,6 +11,7 @@ var kb float64 = 1024
 var mb = kb * kb
 var gb = mb * kb
 var tb = gb * kb
+var pb = tb * kb
 
 // ToSizeString converts the byte count to the appropriate unit (KB, MB, GB, or TB)
 // and formats it with the specified precision if provided.
@@ -42,7 +43,9 @@ func ToSizeString[T ByteCount](size T, precision ...int) string {
 		return fmt.Sprintf(format("MB"), value/mb)
 	} else if value < tb {
 		return fmt.Sprintf(format("GB"), value/gb)
-	} else {
+	} else if value < pb {
 		return fmt.Sprintf(format("TB"), value/tb)
+	} else {
+		return fmt.Sprintf(format("PB"), value/pb)
 	}
 }
