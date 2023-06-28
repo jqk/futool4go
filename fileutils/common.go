@@ -43,11 +43,13 @@ func CopyDir(source, target string) error {
 			if err != nil {
 				return err
 			}
+
 			to, err := os.Create(abspath)
 			if err != nil {
 				from.Close()
 				return err
 			}
+
 			_, err = io.Copy(to, from)
 			from.Close()
 			to.Close()
@@ -55,6 +57,7 @@ func CopyDir(source, target string) error {
 				return err
 			}
 		}
+
 		return nil
 	})
 }
