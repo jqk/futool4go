@@ -16,7 +16,7 @@ var filter *Filter = &Filter{
 		"",
 	},
 	Exclude: []string{
-		"*.log",
+		"*.logfile",
 	},
 	MinFileSize: 1024,
 	MaxFileSize: 3000,

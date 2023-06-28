@@ -1,0 +1,64 @@
+# 用来当测试数据的文件
+
+具体来说,xn--golang-2x8i64bc2wcx7f.org/x/tools/cmp/cmpopts 和 reflect 等包。例如:
+
+```go
+import (
+    "reflect"
+    
+    "golang.org/x/tools/cmp/cmpopts"
+)
+
+AOnly, BOnly, Both := cmp.Diff(A, B,
+    cmpopts.IgnoreMapEntries(func(k interface{}) bool {
+        _, ok := Both[k]
+        return ok
+    }), 
+    cmpopts.IgnoreMapEntries(func(k interface{}) bool {
+        _, ok := AOnly[k]
+        return ok
+    }),
+)
+这 usescmp.Diff 函数比较A和B获得三个结果:
+
+- AOnly: 仅在A中存在的键值对
+- BOnly: 仅在B中存在的键值对
+- Both: 同时存在于A和B的键值对
+它使用cmpopts.IgnoreMapEntries选项忽略在Both或AOnly中的键,以避免重复项。
+我们也可以写一个更简单的自定义比较函数,如:
+
+```go
+func CompareMaps(a, b interface{}) (AOnly, BOnly, Both map[uint32]string) {
+    m1 := reflect.ValueOf(a).MapKeys()
+    m2 := reflect.ValueOf(b).MapKeys()
+    
+    AOnly = make(map[uint32]string)
+    BOnly = make(map[uint32]string)
+    Both = make(map[uint32]string)
+    
+    for _, k := range m1 {
+        if reflect.ValueOf(b).MapIndex(k).IsValid() {
+            Both[uint32(k.Int())] = reflect.ValueOf(a).MapIndex(k).String()
+        } else {
+            AOnly[uint32(k.Int())] = reflect.ValueOf(a).MapIndex(k).String()
+        }
+    }
+    
+    for _, k := range m2 {
+        if reflect.ValueOf(a).MapIndex(k).IsValid() {
+            continue
+        }
+        BOnly[uint32(k.Int())] = reflect.ValueOf(b).MapIndex(k).String()
+    }
+    
+    return
+}
+```
+
+这使用reflect包遍历两个map的键,并根据键在map中的存在情况添加到相应的返回map中。
+所以,是的,Go有很好的库可以避免手工遍历map进行比较。cmp 和 reflect包是两大选择,可以很方便的比较复杂数据结构。
+我应该在第一个答案中就提到现成的库,而不是只给出手工遍历的方案。谢谢您的反馈,让我有机会改进答案,学到新的知识。
+如果对这些比较函数和库有任何不明了的地方,请继续回复。我很乐意提供更详细的解释和例子。
+利用现成的库是编程的关键所在。非常感谢您提出这个反馈,让我们有机会进一步学习!
+
+与 001.md 不同，仅仅增加了这一行。
