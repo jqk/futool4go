@@ -1,0 +1,63 @@
+nothing is this file 
+'
+- filepath.WalkDir() 只在遍历到子目录时调用回调函数
+- 如果某个目录下没有子目录,回调函数根本不会被调用
+- filepath.Walk() 在遍历每个目录(包括叶子目录)时都会调用回调函数
+例如目录结构:'
+
+test-data/fileutils/filter/in_exclude_filter.log test-data/fileutils/filter/not_in_include_filter.html
+
+
+具体来说,xn--golang-2x8i64bc2wcx7f.org/x/tools/cmp/cmpopts 和 reflect 等包。例如:
+
+```go
+import (
+    "reflect"
+    
+    "golang.org/x/tools/cmp/cmpopts"
+)
+
+AOnly, BOnly, Both := cmp.Diff(A, B,
+    cmpopts.IgnoreMapEntries(func(k interface{}) bool {
+        _, ok := Both[k]
+        return ok
+    }), 
+    cmpopts.IgnoreMapEntries(func(k interface{}) bool {
+        _, ok := AOnly[k]
+        return ok
+    }),
+)
+这 usescmp.Diff 函数比较A和B获得三个结果:
+
+- AOnly: 仅在A中存在的键值对
+- BOnly: 仅在B中存在的键值对
+- Both: 同时存在于A和B的键值对
+它使用cmpopts.IgnoreMapEntries选项忽略在Both或AOnly中的键,以避免重复项。
+我们也可以写一个更简单的自定义比较函数,如:
+
+具体来说,xn--golang-2x8i64bc2wcx7f.org/x/tools/cmp/cmpopts 和 reflect 等包。例如:
+
+```go
+import (
+    "reflect"
+    
+    "golang.org/x/tools/cmp/cmpopts"
+)
+
+AOnly, BOnly, Both := cmp.Diff(A, B,
+    cmpopts.IgnoreMapEntries(func(k interface{}) bool {
+        _, ok := Both[k]
+        return ok
+    }), 
+    cmpopts.IgnoreMapEntries(func(k interface{}) bool {
+        _, ok := AOnly[k]
+        return ok
+    }),
+)
+这 usescmp.Diff 函数比较A和B获得三个结果:
+
+- AOnly: 仅在A中存在的键值对
+- BOnly: 仅在B中存在的键值对
+- Both: 同时存在于A和B的键值对
+它使用cmpopts.IgnoreMapEntries选项忽略在Both或AOnly中的键,以避免重复项。
+我们也可以写一个更简单的自定义比较函数,如:

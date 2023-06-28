@@ -1,0 +1,42 @@
+Starting: C:\Users\Jason\go\bin\dlv.exe dap --listen=127.0.0.1:54137 from e:\github\jqk\file-diff-grouper\file-diff
+DAP server listening at: 127.0.0.1:54137
+Type 'dlv help' for list of commands.
+0 {.c 1 .c}
+1 {.log 2 .log}
+2 {.md 4 .md}
+3 {.MD 1 .md}
+4 {.txt 5 .txt}
+0 {.c 1 .c}
+1 {.log 2 .log}
+2 {.md 5 .md}
+3 {.txt 5 .txt}
+Detaching and terminating target process
+
+
+Starting: C:\Users\Jason\go\bin\dlv.exe dap --listen=127.0.0.1:54137 from e:\github\jqk\file-diff-grouper\file-diff
+DAP server listening at: 127.0.0.1:54137
+Type 'dlv help' for list of commands.
+0 {.c 1 .c}
+1 {.log 2 .log}
+2 {.md 4 .md}
+3 {.MD 1 .md}
+4 {.txt 5 .txt}
+0 {.c 1 .c}
+1 {.log 2 .log}
+2 {.md 5 .md}
+3 {.txt 5 .txt}
+Detaching and terminating target process
+
+Starting: C:\Users\Jason\go\bin\dlv.exe dap --listen=127.0.0.1:54137 from e:\github\jqk\file-diff-grouper\file-diff
+DAP server listening at: 127.0.0.1:54137
+Type 'dlv help' for list of commands.
+0 {.c 1 .c}
+1 {.log 2 .log}
+2 {.md 4 .md}
+3 {.MD 1 .md}
+4 {.txt 5 .txt}
+0 {.c 1 .c}
+1 {.log 2 .log}
+2 {.md 5 .md}
+3 {.txt 5 .txt}
+Detaching and terminating target process
