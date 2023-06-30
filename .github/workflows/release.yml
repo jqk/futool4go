@@ -1,37 +1,19 @@
-name: Build and Release
+name: Create release from new tag
 
+# this flow will be run only when new tags are pushed that match our pattern
 on:
   push:
     tags:
-      - "v*.*.*" # 只有以 'v' 开头的标签提交才会触发工作流
+      - "v[0-9]+.[0-9]+.[0-9]+"
 
 jobs:
-  build-and-test:
-    name: Build and Test
+  build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
-      - name: Checkout Repository
+      - name: Checkout
         uses: actions/checkout@v3
-      - name: Set up Go
-        uses: actions/setup-go@v3
-        with:
-          go-version: ">=1.20"
-          cache: true
 
-      - name: Build
-        run: go build
-      # 本地测试通过，但在 github action 测试环境中得到的值不同，暂不做。
-      # - name: Test
-      #   run: go test ./...
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          body: |
-            Release notes for ${{ github.ref }}
-          draft: false
-          prerelease: false
+      - name: Create GitHub release from tag
+        uses: softprops/action-gh-release@v1
