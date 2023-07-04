@@ -15,6 +15,14 @@ type FileExtension struct {
 	key   string
 }
 
+// FileExtensionConsumer is a function type that provides the FileExtension and consumes them.
+//
+// Takes in file's full path and its info object, and FileExtension object.
+// FileExtension is nil means path is a directory.
+//
+// Returns an error if any, or filepath.SkipDir and filepath.SkipAll to terminate scan.
+type FileExtensionConsumer func(path string, info os.FileInfo, extension *FileExtension) error
+
 func NewFileExtension(name string) *FileExtension {
 	return &FileExtension{Name: name, Count: 0, Size: 0, key: strings.ToLower(name)}
 }
@@ -23,11 +31,12 @@ func NewFileExtension(name string) *FileExtension {
 // directory tree rooted at a given path and counting the files of each unique
 // extension type.
 //
-// The function takes two arguments: the path string and a bool
+// The function takes three arguments: the path string and a bool
 // value indicating whether the extension names should be case sensitive or not.
+// The last one is the consumer function, could be nil.
 //
 // It returns a sorted slice of FileExtension structs and an error value.
-func GetFileExtensions(path string, caseSensitive bool) ([]FileExtension, error) {
+func GetFileExtensions(path string, caseSensitive bool, consumer FileExtensionConsumer) ([]FileExtension, error) {
 	pathExists, isDir, outerErr := FileExists(path)
 	if outerErr != nil {
 		return nil, outerErr
@@ -44,6 +53,9 @@ func GetFileExtensions(path string, caseSensitive bool) ([]FileExtension, error)
 		if err != nil {
 			return err
 		} else if info.IsDir() {
+			if consumer != nil {
+				return consumer(path, info, nil)
+			}
 			return nil
 		}
 
@@ -60,10 +72,14 @@ func GetFileExtensions(path string, caseSensitive bool) ([]FileExtension, error)
 		extMap[ext].Count++
 		extMap[ext].Size += info.Size()
 
+		if consumer != nil {
+			return consumer(path, info, extMap[ext])
+		}
+
 		return nil
 	})
 
-	if outerErr != nil {
+	if outerErr != nil && outerErr != filepath.SkipAll && outerErr != filepath.SkipDir {
 		return nil, outerErr
 	}
 

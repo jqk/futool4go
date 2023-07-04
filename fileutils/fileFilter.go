@@ -87,6 +87,10 @@ func (f *Filter) GetEachFile(root string, recursive bool, comsumer FilterConsume
 		return err
 	})
 
+	if walkErr != nil && walkErr != filepath.SkipAll && walkErr != filepath.SkipDir {
+		return nil
+	}
+
 	return walkErr
 }
 
