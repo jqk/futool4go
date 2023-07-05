@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestGetExtensions(t *testing.T) {
+func TestGetExtensionsWithoutConsumer(t *testing.T) {
 	extensions, err := GetFileExtensions("../test-data/fileutils/extension", true, nil)
 	assert.Nil(t, err)
 	assert.NotNil(t, extensions)
@@ -19,8 +19,10 @@ func TestGetExtensions(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, extensions)
 	assert.Equal(t, 3, len(extensions))
+}
 
-	extensions, err = GetFileExtensions("../test-data/fileutils/extension", true,
+func TestGetExtensionsWithConsumer(t *testing.T) {
+	extensions, err := GetFileExtensions("../test-data/fileutils/extension", true,
 		func(path string, info os.FileInfo, extension *FileExtension) error {
 			// 直接停止，所以结果为空数组。
 			return filepath.SkipAll
@@ -59,4 +61,54 @@ func TestGetExtensions(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, extensions)
 	assert.Equal(t, 5, len(extensions))
+}
+
+func TestSortExtensions(t *testing.T) {
+	fs := []FileExtension{
+		{
+			Name:  ".txt",
+			Count: 1,
+			Size:  1000,
+			key:   ".txt",
+		},
+		{
+			Name:  ".Txt",
+			Count: 4,
+			Size:  50,
+			key:   ".txt",
+		},
+		{
+			Name:  ".log",
+			Count: 5,
+			Size:  100,
+			key:   ".log",
+		},
+		{
+			Name:  ".md",
+			Count: 1,
+			Size:  100,
+			key:   ".md",
+		},
+	}
+
+	SortFileExtensionsByName(fs)
+
+	assert.Equal(t, ".log", fs[0].Name)
+	assert.Equal(t, ".md", fs[1].Name)
+	assert.Equal(t, ".txt", fs[2].Name)
+	assert.Equal(t, ".Txt", fs[3].Name)
+
+	SortFileExtensionsByCount(fs)
+
+	assert.Equal(t, ".log", fs[0].Name)
+	assert.Equal(t, ".Txt", fs[1].Name)
+	assert.Equal(t, ".txt", fs[2].Name)
+	assert.Equal(t, ".md", fs[3].Name)
+
+	SortFileExtensionsBySize(fs)
+
+	assert.Equal(t, ".txt", fs[0].Name)
+	assert.Equal(t, ".log", fs[1].Name)
+	assert.Equal(t, ".md", fs[2].Name)
+	assert.Equal(t, ".Txt", fs[3].Name)
 }

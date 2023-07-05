@@ -8,11 +8,16 @@ import (
 	"strings"
 )
 
+// FileExtension describes file extension information.
 type FileExtension struct {
-	Name  string
-	Count int
-	Size  int64
-	key   string
+	Name string // Name of the file extension, including the dot.
+	// For example:
+	//   ".txt"
+	//   ".html"
+	//   "" means no extenion.
+	Count int    // occurrence count
+	Size  int64  // total file size
+	key   string // key is an internal key used for sorting
 }
 
 // FileExtensionConsumer is a function type that provides the FileExtension and consumes them.
@@ -23,8 +28,15 @@ type FileExtension struct {
 // Returns an error if any, or filepath.SkipDir and filepath.SkipAll to terminate scan.
 type FileExtensionConsumer func(path string, info os.FileInfo, extension *FileExtension) error
 
-func NewFileExtension(name string) *FileExtension {
-	return &FileExtension{Name: name, Count: 0, Size: 0, key: strings.ToLower(name)}
+// NewFileExtension creates a new FileExtension object with the given file extension.
+//
+// Parameters:
+// - extension: the name of the file extension, including the dot. "" means no extenion.
+//
+// Returns:
+// - *FileExtension: a pointer to the newly created FileExtension object.
+func NewFileExtension(extension string) *FileExtension {
+	return &FileExtension{Name: extension, Count: 0, Size: 0, key: strings.ToLower(extension)}
 }
 
 // GetFileExtensions returns a slice of FileExtension structs by walking through the
@@ -35,7 +47,7 @@ func NewFileExtension(name string) *FileExtension {
 // value indicating whether the extension names should be case sensitive or not.
 // The last one is the consumer function, could be nil.
 //
-// It returns a sorted slice of FileExtension structs and an error value.
+// It returns a unsorted slice of FileExtension structs and an error value.
 func GetFileExtensions(path string, caseSensitive bool, consumer FileExtensionConsumer) ([]FileExtension, error) {
 	pathExists, isDir, outerErr := FileExists(path)
 	if outerErr != nil {
@@ -89,7 +101,15 @@ func GetFileExtensions(path string, caseSensitive bool, consumer FileExtensionCo
 		extensions = append(extensions, *ext)
 	}
 
-	// 排序。
+	return extensions, nil
+}
+
+// SortFileExtensionsByName sorts the given list of FileExtension structs by name, asec.
+//
+// The function takes a slice of FileExtension structs as the parameter.
+//
+// The function modifies the given slice in-place.
+func SortFileExtensionsByName(extensions []FileExtension) {
 	sort.Slice(extensions, func(i, j int) bool {
 		key_i := extensions[i].key
 		key_j := extensions[j].key
@@ -99,8 +119,50 @@ func GetFileExtensions(path string, caseSensitive bool, consumer FileExtensionCo
 			return extensions[i].Name > extensions[j].Name
 		}
 
+		// 升序。
 		return key_i < key_j
 	})
+}
 
-	return extensions, nil
+// SortFileExtensionsByCount sorts the given list of file extensions by count in descending order.
+//
+// The function takes a slice of FileExtension structs as input. The FileExtension struct should have
+// two fields: Count (which represents the count of the file extension) and Size (which represents the
+// size of the file extension). The function sorts the list of file extensions based on the count in
+// descending order. If the count of two file extensions is the same, it compares the size in descending
+// order. The function modifies the given slice in-place.
+func SortFileExtensionsByCount(extensions []FileExtension) {
+	sort.Slice(extensions, func(i, j int) bool {
+		count_i := extensions[i].Count
+		count_j := extensions[j].Count
+
+		if count_i == count_j {
+			return extensions[i].Size > extensions[j].Size
+		}
+
+		// 降序。
+		return count_i > count_j
+	})
+}
+
+// SortFileExtensionsBySize sorts the given list of file extensions by size in descending order.
+//
+// The function takes in a slice of FileExtension structs as the parameter. Each FileExtension struct
+// represents a file extension and contains the size and count of files with that extension. The function
+// sorts the extensions based on their size, with larger sizes appearing first. If two extensions have the
+// same size, the function sorts them based on their count in descending order.
+//
+// The function modifies the given slice in-place.
+func SortFileExtensionsBySize(extensions []FileExtension) {
+	sort.Slice(extensions, func(i, j int) bool {
+		size_i := extensions[i].Size
+		size_j := extensions[j].Size
+
+		if size_i == size_j {
+			return extensions[i].Count > extensions[j].Count
+		}
+
+		// 降序。
+		return size_i > size_j
+	})
 }

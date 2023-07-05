@@ -15,12 +15,13 @@ var ErrReasonMaxSize = errors.New("file size is larger than max size")
 var ErrReasonInExclude = errors.New("file name matches exclude")
 var ErrReasonNotInInclude = errors.New("file name does not match include")
 
+// Filter defines conditions to filter files.
 type Filter struct {
-	CaseSensitive bool     `mapstructure:"caseSensitive"`
-	Include       []string `mapstructure:"include"`
-	Exclude       []string `mapstructure:"exclude"`
-	MinFileSize   int64    `mapstructure:"minFileSize"`
-	MaxFileSize   int64    `mapstructure:"maxFileSize"`
+	CaseSensitive bool     `mapstructure:"caseSensitive"` // Case sensitive flag. If true, include and exclude patterns are case sensitive.
+	Include       []string `mapstructure:"include"`       // Only files matching at least one pattern will be included. Supports glob patterns.
+	Exclude       []string `mapstructure:"exclude"`       // Files matching at least one pattern will be excluded. Supports glob patterns.
+	MinFileSize   int64    `mapstructure:"minFileSize"`   // Minimum file size in bytes. Files smaller than this will be excluded. 0 means no limit.
+	MaxFileSize   int64    `mapstructure:"maxFileSize"`   // Maximum file size in bytes. Files larger than this will be excluded. 0 means no limit.
 }
 
 // FilterConsumer is a function type that filters file and consumes them.
@@ -122,6 +123,11 @@ func (f *Filter) GetFiles(root string, recursive bool) (*[]string, error) {
 	return &result, nil
 }
 
+// AcceptFile checks if the given file should be accepted or rejected based on the filter criteria.
+//
+// fileInfo: The information about the file.
+//
+// error: An error indicating the reason for rejecting the file, if applicable.
 func (f *Filter) AcceptFile(fileInfo os.FileInfo) error {
 	if fileInfo.IsDir() {
 		return ErrReasonIsDir

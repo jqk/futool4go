@@ -44,6 +44,11 @@ func (s *Stopwatch) Stop() {
 	}
 }
 
+// ElapsedTime returns the elapsed time of the Stopwatch.
+//
+// No parameters.
+//
+// Returns a time.Duration representing the elapsed time.
 func (s *Stopwatch) ElapsedTime() time.Duration {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
@@ -55,9 +60,13 @@ func (s *Stopwatch) ElapsedTime() time.Duration {
 	}
 }
 
-type ElapseingFunc func() error
-
-func (s *Stopwatch) Elapsing(fn ElapseingFunc) (time.Duration, error) {
+// Elapsing executes the given function and returns the elapsed time and error.
+//
+// The function fn is executed after restarting the stopwatch. The stopwatch is then stopped
+// after executing the function. The elapsed time is returned along with any error that occurred.
+//
+// The return type is time.Duration and error.
+func (s *Stopwatch) Elapsing(fn func() error) (time.Duration, error) {
 	s.Restart()
 	defer s.Stop()
 
