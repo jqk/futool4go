@@ -1,5 +1,5 @@
 package futool4go
 
 func Version() string {
-	return "v0.1.1"
+	return "v1.0.1"
 }
