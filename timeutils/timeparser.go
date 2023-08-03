@@ -7,11 +7,11 @@ import (
 	"time"
 )
 
-// RequireDateTimeInRange 定义是否要求日期时间各字段的值都在范围内。默认为 true。
+// RequireDateTimeFieldValid 定义是否要求日期时间各字段的值都在范围内。默认为 true。
 // 该值为全局设置，会影响后续所有操作。
-var RequireDateTimeInRange = true
+var RequireDateTimeFieldValid = true
 
-// 用于 UnixTime 的正则表达式：
+// regexUnixTime 是用于 UnixTime 的正则表达式：
 // 1. 可以有字符前缀及后缀。
 // 2. 需要至少 10 位数字代表秒数。
 // 3. 可以再有 3 位数字代表毫秒数。不足不算。
@@ -40,18 +40,20 @@ func ParseUnixTime(s string) *time.Time {
 	return &result
 }
 
-// 用于无分隔符的日期时间正则表达式：
+// regexDateTimeNoSep 是用于无分隔符的日期时间正则表达式：
 //  1. 可以有字符前缀及后缀。
 //  2. 日期数字之间无分隔符，需要至少 8 位数字表示 YYYYMMDD。
 //  3. 日期与时间之间可以有为分隔符，也可以无分隔符。分隔符可以是“_”、“-”、“.”、“ ”和“T”。
 //  4. 时间数字之间无分隔符，可以是 4 位数字，6 位数字，或者 9 位数字。
 //     分别表示 HHMM，HHMMSS 及 HHMMSSSS。也就是说，可以精确到分钟、秒或毫秒。
 //  5. 毫秒数为 3 位，与秒数之间可以有“.”作为分隔符，也可以无分隔符。
+//
+// note: 最后的 (\.?(\d{3}))? 不要外圈这括号也行，但加上后解析结果数组与 regexDateTimeHasSep 一致。
 var regexDateTimeNoSep = regexp.MustCompile(
 	`^.*?(\d{4})(\d{2})(\d{2})[-|_|\.| |T]?` +
-		`(\d{2})(\d{2})((\d{2})\.?(\d{3})?)?.*`)
+		`(\d{2})(\d{2})((\d{2})(\.?(\d{3}))?)?.*`)
 
-// 用于有分隔符的日期时间正则表达式：
+// regexDateTimeHasSep 是用于有分隔符的日期时间正则表达式：
 //  1. 可以有字符前缀及后缀。
 //  2. 日期数字之间有分隔符，年 4 位，月 1 或 2 位，日 1 或 2 位。
 //  3. 日期与时间之间必须有为分隔符，可以是“_”、“-”、“.”、“ ”和“T”。
@@ -62,83 +64,55 @@ var regexDateTimeHasSep = regexp.MustCompile(
 		`(\d{1,2})[-|_|\.|\:|](\d{2})([-|_|\.|\:|](\d{2})(\.(\d{3}))?)?.*`)
 
 func ParseDateTime(s string) *time.Time {
-	result := parseDateTimeHasSeperator(s)
+	parse := func(s string, regex *regexp.Regexp) *time.Time {
+		subs := regex.FindStringSubmatch(s)
+		if len(subs) == 0 {
+			// 没有配置的日期时间字符串，所以数组长度为 0，返回 nil 说明转换不成功。
+			return nil
+		}
+
+		year, _ := strconv.Atoi(subs[1])
+		m, _ := strconv.Atoi(subs[2])
+		month := time.Month(m)
+		day, _ := strconv.Atoi(subs[3])
+		hour, _ := strconv.Atoi(subs[4])
+		minute, _ := strconv.Atoi(subs[5])
+		// subs[6] 包含了秒和毫秒。
+		second, _ := strconv.Atoi(subs[7])
+
+		if IsDateTimeFieldValid(year, m, day, hour, minute, second) != nil {
+			return nil
+		}
+
+		// subs[8] 包含了"."和毫秒。
+		millisecond, _ := strconv.Atoi(subs[9])
+		nanosecond := millisecond * 1000_000
+
+		result := time.Date(year, month, day, hour, minute, second, nanosecond, time.Local)
+		return &result
+	}
+
+	result := parse(s, regexDateTimeHasSep)
 	if result != nil {
 		return result
 	}
 
-	return parseDateTimeNoSeperator(s)
+	return parse(s, regexDateTimeNoSep)
 }
 
-func parseDateTimeNoSeperator(s string) *time.Time {
-	subs := regexDateTimeNoSep.FindStringSubmatch(s)
-	if len(subs) == 0 {
-		// 没有配置的日期时间字符串，所以数组长度为 0，返回 nil 说明转换不成功。
-		return nil
-	}
-
-	year, _ := strconv.Atoi(subs[1])
-	m, _ := strconv.Atoi(subs[2])
-	month := time.Month(m)
-	day, _ := strconv.Atoi(subs[3])
-	hour, _ := strconv.Atoi(subs[4])
-	minute, _ := strconv.Atoi(subs[5])
-	// subs[6] 包含了秒和毫秒。
-	second, _ := strconv.Atoi(subs[7])
-
-	if IsValidDateTimeRange(year, m, day, hour, minute, second) != nil {
-		return nil
-	}
-
-	millisecond, _ := strconv.Atoi(subs[8])
-	nanosecond := millisecond * 1000_000
-
-	result := time.Date(year, month, day, hour, minute, second, nanosecond, time.Local)
-	return &result
-}
-
-func parseDateTimeHasSeperator(s string) *time.Time {
-	subs := regexDateTimeHasSep.FindStringSubmatch(s)
-	if len(subs) == 0 {
-		// 没有配置的日期时间字符串，所以数组长度为 0，返回 nil 说明转换不成功。
-		return nil
-	}
-
-	year, _ := strconv.Atoi(subs[1])
-	m, _ := strconv.Atoi(subs[2])
-	month := time.Month(m)
-	day, _ := strconv.Atoi(subs[3])
-	hour, _ := strconv.Atoi(subs[4])
-	minute, _ := strconv.Atoi(subs[5])
-	// subs[6] 包含了秒和毫秒。
-	second, _ := strconv.Atoi(subs[7])
-
-	if IsValidDateTimeRange(year, m, day, hour, minute, second) != nil {
-		return nil
-	}
-
-	// subs[8] 包含了"."和毫秒。
-	millisecond, _ := strconv.Atoi(subs[9])
-	nanosecond := millisecond * 1000_000
-
-	result := time.Date(year, month, day, hour, minute, second, nanosecond, time.Local)
-	return &result
-}
-
-// 用于有分隔符的日期正则表达式：
+// regexDateHasSep 是用于有分隔符的日期正则表达式：
 //  1. 可以有字符前缀及后缀。
 //  2. 日期数字之间有分隔符，年 4 位，月 1 或 2 位，日 1 或 2 位。
 var regexDateHasSep = regexp.MustCompile(`^.*?(\d{4})[-|_|\.|](\d{1,2})[-|_|\.|](\d{1,2}).*`)
 
-// 用于无分隔符的日期正则表达式：
+// regexDateNoSep 是用于无分隔符的日期正则表达式：
 //  1. 可以有字符前缀及后缀。
 //  2. 日期数字之间无分隔符，需要至少 8 位数字表示 YYYYMMDD。
 var regexDateNoSep = regexp.MustCompile(`^.*?(\d{4})(\d{2})(\d{2}).*`)
 
 func ParseDate(s string) *time.Time {
-	parseDate := func(s string, regex *regexp.Regexp) *time.Time {
+	parse := func(s string, regex *regexp.Regexp) *time.Time {
 		subs := regex.FindStringSubmatch(s)
-
 		if len(subs) == 0 {
 			// 没有配置的日期字符串，所以数组长度为 0，返回 nil 说明转换不成功。
 			return nil
@@ -149,7 +123,7 @@ func ParseDate(s string) *time.Time {
 		month := time.Month(m)
 		day, _ := strconv.Atoi(subs[3])
 
-		if IsValidDateTimeRange(year, m, day, 0, 0, 0) != nil {
+		if IsDateTimeFieldValid(year, m, day, 0, 0, 0) != nil {
 			return nil
 		}
 
@@ -157,16 +131,16 @@ func ParseDate(s string) *time.Time {
 		return &result
 	}
 
-	result := parseDate(s, regexDateHasSep)
+	result := parse(s, regexDateHasSep)
 	if result != nil {
 		return result
 	}
 
-	return parseDate(s, regexDateNoSep)
+	return parse(s, regexDateNoSep)
 }
 
-func IsValidDateTimeRange(year, month, day, hour, minute, second int) error {
-	if !RequireDateTimeInRange {
+func IsDateTimeFieldValid(year, month, day, hour, minute, second int) error {
+	if !RequireDateTimeFieldValid {
 		return nil
 	}
 
@@ -202,25 +176,24 @@ func IsValidDateTimeRange(year, month, day, hour, minute, second int) error {
 	return nil
 }
 
-// 用于无分隔符的时间正则表达式：
+// regexTimeNoSep 是用于无分隔符的时间正则表达式：
 //  1. 可以有字符前缀及后缀。
 //  2. 时间数字之间无分隔符，可以是 4 位数字，6 位数字，或者 9 位数字。
 //     分别表示 HHMM，HHMMSS 及 HHMMSSSS。也就是说，可以精确到分钟、秒或毫秒。
 //  3. 毫秒数为 3 位，与秒数之间可以有“.”作为分隔符，也可以无分隔符。
 //
-// note: (\.?(\d{3}))? 不要外圈这括号也行，但加上后解析结果数组与 regexTimeHasSep 一致。
+// note: 最后的 (\.?(\d{3}))? 不要外圈这括号也行，但加上后解析结果数组与 regexTimeHasSep 一致。
 var regexTimeNoSep = regexp.MustCompile(`^.*?(\d{2})(\d{2})((\d{2})(\.?(\d{3}))?)?.*`)
 
-// 用于有分隔符的时间正则表达式：
+// regexTimeHasSep 是用于有分隔符的时间正则表达式：
 //  1. 可以有字符前缀及后缀。
 //  2. 时间数字之间有分隔符，可以是“_”、“-”、“.”、“:”。秒与毫秒之间只能是“.”。
 //     小时 1 或 2 位，分钟和秒都是 2 位，毫秒是 3 位。可以精确到分钟、秒或毫秒。
 var regexTimeHasSep = regexp.MustCompile(`^.*?(\d{1,2})[-|_|\.|\:|](\d{2})([-|_|\.|\:|](\d{2})(\.(\d{3}))?)?.*`)
 
 func ParseTime(s string) *time.Time {
-	parseTime := func(s string, regex *regexp.Regexp) *time.Time {
+	parse := func(s string, regex *regexp.Regexp) *time.Time {
 		subs := regex.FindStringSubmatch(s)
-
 		if len(subs) == 0 {
 			// 没有配置的日期字符串，所以数组长度为 0，返回 nil 说明转换不成功。
 			return nil
@@ -232,7 +205,7 @@ func ParseTime(s string) *time.Time {
 		millisecond, _ := strconv.Atoi(subs[6])
 		nanosecond := millisecond * 1000_000
 
-		if IsValidDateTimeRange(0, 1, 1, hour, minute, second) != nil {
+		if IsDateTimeFieldValid(0, 1, 1, hour, minute, second) != nil {
 			return nil
 		}
 
@@ -241,10 +214,10 @@ func ParseTime(s string) *time.Time {
 		return &result
 	}
 
-	result := parseTime(s, regexTimeHasSep)
+	result := parse(s, regexTimeHasSep)
 	if result != nil {
 		return result
 	}
 
-	return parseTime(s, regexTimeNoSep)
+	return parse(s, regexTimeNoSep)
 }

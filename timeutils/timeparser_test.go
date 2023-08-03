@@ -32,7 +32,7 @@ func TestParseUnixTime(t *testing.T) {
 }
 
 func TestParseDateTimeNoSeperator(t *testing.T) {
-	RequireDateTimeInRange = true
+	RequireDateTimeFieldValid = true
 
 	// 有前、后缀，“-”作为分隔符，精确到分钟的字符串。
 	tm := ParseDateTime("abc20100223-1534ddd.jpg")
@@ -64,14 +64,14 @@ func TestParseDateTimeNoSeperator(t *testing.T) {
 	assert.Nil(t, tm)
 
 	// 有效的字符串，因为不检查字段范围，所以月份字段超过范围仍进行解析，这是 go 内置的功能。
-	RequireDateTimeInRange = false
+	RequireDateTimeFieldValid = false
 	tm = ParseDateTime("201022231234")
 	assert.NotNil(t, tm)
 	// 加上了超范围的月份数。
 	assert.Equal(t, "2011-10-23 12:34:00", tm.Format("2006-01-02 15:04:05"))
 
 	// 恢复默认设置。
-	RequireDateTimeInRange = true
+	RequireDateTimeFieldValid = true
 }
 
 func TestParseDateTimeHasSeperator(t *testing.T) {
@@ -151,4 +151,17 @@ func TestParseTime(t *testing.T) {
 	assert.Equal(t, "15:34:56.789", tp.Format("15:04:05.000"))
 	// 指定时区，此处必然相等。
 	assert.Equal(t, tp, *tm)
+}
+
+func TestDateTimeFieldValid(t *testing.T) {
+	assert.Nil(t, IsDateTimeFieldValid(1, 2, 28, 23, 59, 59))
+	assert.Nil(t, IsDateTimeFieldValid(2010, 4, 30, 23, 59, 59))
+	assert.Nil(t, IsDateTimeFieldValid(2000, 2, 29, 23, 59, 59))
+	assert.Nil(t, IsDateTimeFieldValid(2010, 5, 31, 23, 59, 59))
+
+	assert.NotNil(t, IsDateTimeFieldValid(1900, 2, 29, 23, 59, 59))
+	assert.NotNil(t, IsDateTimeFieldValid(2010, 13, 29, 23, 59, 59))
+	assert.NotNil(t, IsDateTimeFieldValid(2010, 2, 23, 24, 59, 59))
+	assert.NotNil(t, IsDateTimeFieldValid(2010, 2, 23, 5, 60, 59))
+	assert.NotNil(t, IsDateTimeFieldValid(2010, 2, 23, 5, 25, 60))
 }
