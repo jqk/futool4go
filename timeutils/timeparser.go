@@ -1,10 +1,15 @@
 package timeutils
 
 import (
+	"fmt"
 	"regexp"
 	"strconv"
 	"time"
 )
+
+// RequireDateTimeInRange 定义是否要求日期时间各字段的值都在范围内。默认为 true。
+// 该值为全局设置，会影响后续所有操作。
+var RequireDateTimeInRange = true
 
 // 用于 UnixTime 的正则表达式：
 // 1. 可以有字符前缀及后缀。
@@ -31,7 +36,7 @@ func ParseUnixTime(s string) *time.Time {
 		nanosecond *= 1000_000
 	}
 
-	result := time.Unix(second, nanosecond)
+	result := time.Unix(second, nanosecond).In(time.Local)
 	return &result
 }
 
@@ -80,6 +85,11 @@ func parseDateTimeNoSeperator(s string) *time.Time {
 	minute, _ := strconv.Atoi(subs[5])
 	// subs[6] 包含了秒和毫秒。
 	second, _ := strconv.Atoi(subs[7])
+
+	if IsValidDateTimeRange(year, m, day, hour, minute, second) != nil {
+		return nil
+	}
+
 	millisecond, _ := strconv.Atoi(subs[8])
 	nanosecond := millisecond * 1000_000
 
@@ -102,10 +112,92 @@ func parseDateTimeHasSeperator(s string) *time.Time {
 	minute, _ := strconv.Atoi(subs[5])
 	// subs[6] 包含了秒和毫秒。
 	second, _ := strconv.Atoi(subs[7])
+
+	if IsValidDateTimeRange(year, m, day, hour, minute, second) != nil {
+		return nil
+	}
+
 	// subs[8] 包含了"."和毫秒。
 	millisecond, _ := strconv.Atoi(subs[9])
 	nanosecond := millisecond * 1000_000
 
 	result := time.Date(year, month, day, hour, minute, second, nanosecond, time.Local)
 	return &result
+}
+
+// 用于有分隔符的日期正则表达式：
+//  1. 可以有字符前缀及后缀。
+//  2. 日期数字之间有分隔符，年 4 位，月 1 或 2 位，日 1 或 2 位。
+var regexDateHasSep = regexp.MustCompile(`^.*?(\d{4})[-|_|\.|](\d{1,2})[-|_|\.|](\d{1,2}).*`)
+
+// 用于无分隔符的日期正则表达式：
+//  1. 可以有字符前缀及后缀。
+//  2. 日期数字之间无分隔符，需要至少 8 位数字表示 YYYYMMDD。
+var regexDateNoSep = regexp.MustCompile(`^.*?(\d{4})(\d{2})(\d{2}).*`)
+
+func ParseDate(s string) *time.Time {
+	parseDate := func(s string, regex *regexp.Regexp) *time.Time {
+		subs := regex.FindStringSubmatch(s)
+
+		if len(subs) == 0 {
+			// 没有配置的日期字符串，所以数组长度为 0，返回 nil 说明转换不成功。
+			return nil
+		}
+
+		year, _ := strconv.Atoi(subs[1])
+		m, _ := strconv.Atoi(subs[2])
+		month := time.Month(m)
+		day, _ := strconv.Atoi(subs[3])
+
+		if IsValidDateTimeRange(year, m, day, 0, 0, 0) != nil {
+			return nil
+		}
+
+		result := time.Date(year, month, day, 0, 0, 0, 0, time.Local)
+		return &result
+	}
+
+	result := parseDate(s, regexDateHasSep)
+	if result != nil {
+		return result
+	}
+
+	return parseDate(s, regexDateNoSep)
+}
+
+func IsValidDateTimeRange(year, month, day, hour, minute, second int) error {
+	if !RequireDateTimeInRange {
+		return nil
+	}
+
+	if month < 1 || month > 12 {
+		return fmt.Errorf("invalid month: %d", month)
+	}
+	if hour < 0 || hour > 23 {
+		return fmt.Errorf("invalid hour: %d", hour)
+	}
+	if minute < 0 || minute > 59 {
+		return fmt.Errorf("invalid minute: %d", minute)
+	}
+	if second < 0 || second > 59 {
+		return fmt.Errorf("invalid second: %d", second)
+	}
+	if day < 1 || day > 31 {
+		return fmt.Errorf("invalid day: %d", day)
+	}
+	if (month == 4 || month == 6 || month == 9 || month == 11) && day > 30 {
+		return fmt.Errorf("invalid day: %d", day)
+	}
+	if month == 2 {
+		if year%4 == 0 && (year%100 != 0 || year%400 == 0) {
+			// 闰年 2 月份的最大天数为 29
+			if day > 29 {
+				return fmt.Errorf("invalid day for leap year: %d", day)
+			}
+		} else if day > 28 {
+			return fmt.Errorf("invalid day: %d", day)
+		}
+	}
+
+	return nil
 }

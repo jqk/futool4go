@@ -32,6 +32,8 @@ func TestParseUnixTime(t *testing.T) {
 }
 
 func TestParseDateTimeNoSeperator(t *testing.T) {
+	RequireDateTimeInRange = true
+
 	// 有前、后缀，“-”作为分隔符，精确到分钟的字符串。
 	tm := ParseDateTime("abc20100223-1534ddd.jpg")
 	assert.NotNil(t, tm)
@@ -53,9 +55,23 @@ func TestParseDateTimeNoSeperator(t *testing.T) {
 	assert.NotNil(t, tm)
 	assert.Equal(t, "2010-02-23 15:34:56", tm.Format("2006-01-02 15:04:05"))
 
-	// 无效的字符串。
+	// 无效的字符串，因为没有时间部分。
 	tm = ParseDateTime("20100223")
 	assert.Nil(t, tm)
+
+	// 无效的字符串，因为月份字段超过范围。
+	tm = ParseDateTime("201022231234")
+	assert.Nil(t, tm)
+
+	// 有效的字符串，因为不检查字段范围，所以月份字段超过范围仍进行解析，这是 go 内置的功能。
+	RequireDateTimeInRange = false
+	tm = ParseDateTime("201022231234")
+	assert.NotNil(t, tm)
+	// 加上了超范围的月份数。
+	assert.Equal(t, "2011-10-23 12:34:00", tm.Format("2006-01-02 15:04:05"))
+
+	// 恢复默认设置。
+	RequireDateTimeInRange = true
 }
 
 func TestParseDateTimeHasSeperator(t *testing.T) {
@@ -80,7 +96,19 @@ func TestParseDateTimeHasSeperator(t *testing.T) {
 	assert.NotNil(t, tm)
 	assert.Equal(t, "2010-02-23 15:34:56", tm.Format("2006-01-02 15:04:05"))
 
-	// 无效的字符串。
+	// 无效的字符串，因为没有时间部分。
 	tm = ParseDateTime("2010-02-23")
 	assert.Nil(t, tm)
+}
+
+func TestParseDate(t *testing.T) {
+	// 有前、后缀，虽然有分钟，但仅处理日期部分。
+	tm := ParseDate("abc2010-2-23-15:34ddd.jpg")
+	assert.NotNil(t, tm)
+	assert.Equal(t, "2010-02-23 00:00:00", tm.Format("2006-01-02 15:04:05"))
+
+	// 无前缀、有后缀。
+	tm = ParseDate("20100223153456.789ddd.jpg")
+	assert.NotNil(t, tm)
+	assert.Equal(t, "2010-02-23 00:00:00", tm.Format("2006-01-02 15:04:05"))
 }
