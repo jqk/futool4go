@@ -112,3 +112,43 @@ func TestParseDate(t *testing.T) {
 	assert.NotNil(t, tm)
 	assert.Equal(t, "2010-02-23 00:00:00", tm.Format("2006-01-02 15:04:05"))
 }
+
+func TestParseTime(t *testing.T) {
+	// 有前、后缀，精确到分钟。
+	tm := ParseTime("abc15:34ddd.jpg")
+	assert.NotNil(t, tm)
+	assert.Equal(t, "15:34:00", tm.Format("15:04:05"))
+
+	// 有前、后缀，精确到秒。
+	tm = ParseTime("abc15:34.56ddd.jpg")
+	assert.NotNil(t, tm)
+	assert.Equal(t, "15:34:56", tm.Format("15:04:05"))
+
+	// 有前、后缀，精确到毫秒。
+	tm = ParseTime("abc15:34.56.789ddd.jpg")
+	assert.NotNil(t, tm)
+	assert.Equal(t, "15:34:56.789", tm.Format("15:04:05.000"))
+
+	// 有前、后缀，毫秒位不足，会被忽略。
+	tm = ParseTime("abc15:34-56.78ddd.jpg")
+	assert.NotNil(t, tm)
+	assert.Equal(t, "15:34:56.000", tm.Format("15:04:05.000"))
+
+	// 无前、后缀，无分隔符。
+	tm = ParseTime("153456789")
+	assert.NotNil(t, tm)
+	assert.Equal(t, "15:34:56.789", tm.Format("15:04:05.000"))
+
+	// 注意 PasrseTime() 使用的时区是 time.Local，而 time.Parse() 使用的时区是 time.UTC。
+	tp, err := time.Parse("15:04:05.000", "15:34:56.789")
+	assert.Nil(t, err)
+	assert.Equal(t, "15:34:56.789", tp.Format("15:04:05.000"))
+	// 由于时区关系，此处必然不相等。
+	assert.NotEqual(t, tp, *tm)
+
+	tp, err = time.ParseInLocation("15:04:05.000", "15:34:56.789", time.Local)
+	assert.Nil(t, err)
+	assert.Equal(t, "15:34:56.789", tp.Format("15:04:05.000"))
+	// 指定时区，此处必然相等。
+	assert.Equal(t, tp, *tm)
+}
