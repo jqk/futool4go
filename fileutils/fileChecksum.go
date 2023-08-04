@@ -8,20 +8,102 @@ import (
 	"reflect"
 )
 
+/*
+ChecksumCalculator defines function type that calculates the checksum. It only needs to calculate the checksum for the given byte array.
+
+Parameters:
+  - the bytes to be caculated.
+
+Returns:
+  - the count of byte is being calculated.
+  - an error if anything wrong during calculating the checksum.
+
+ChecksumCalculator 定义了执行检验和计算的函数类型。它只需计算给定的字节数组的校验和。
+
+参数:
+  - 待计算的字节数组。
+
+返回:
+  - 计算的字节数。
+  - 错误信息。
+*/
 type ChecksumCalculator func([]byte) (int, error)
+
+/*
+HeaderChecksumReadyHandler defines the function type that is called after the header checksum calculation is completed.
+It is usually used to perform operations like saving the header checksum.
+
+Parameters:
+  - the os.FileInfo of the file being processed.
+  - Whether the file has ended. When the preset header length is greater than or equal to the processed file length,
+    this is true after header processing is completed; otherwise it is false, indicating the file is not fully processed.
+
+Returns:
+  - an error if anything wrong during the calculation.
+
+HeaderChecksumReadyHandler 定义了在文件头部校验值计算完成后被调用的函数类型。一般用于执行保存文件头部校验和之类的操作。
+
+参数:
+  - 当前正在处理的文件信息。
+  - 是否是文件已结束。当预设的文件头长度大于等于被处理的文件长度时，完成文件头处理后，该值为 true；否则为 false，说明文件还未处理完。
+
+返回：
+  - 错误信息。
+*/
 type HeaderChecksumReadyHandler func(os.FileInfo, bool) error
+
+/*
+FullChecksumReadyHandler defines function type that is called after the full file checksum is calculated.
+
+Parameters:
+  - the os.FileInfo of the file.
+
+Returns:
+  - an error if anything wrong during calculation.
+
+FullChecksumReadyHandler 定义了在整个文件的完整校验值计算后被调用的函数类型。
+
+参数:
+  - 当前正在处理的文件信息。
+
+返回：
+  - 错误信息。
+*/
 type FullChecksumReadyHandler func(os.FileInfo) error
 
-// GetFileChecksum calculates the checksum of a file using the provided calculator.
-//
-// filename is the path to the file to be checksummed. headerSize is the number of bytes to be calculated for the file header.
-// buf is the buffer to be used for reading the file, either a []byte or a int. calculator is the checksum calculator to be used.
-// headerReadyHandler is the function to be called after the header checksum is calculated.
-// Being nil indicates that the header checksum is not required.
-// fullReadyHandler is the function to be called after the full file checksum is calculated.
-// Being nil indicates that the full file checksum is not required.
-//
-// Returns an error if any of the arguments are invalid or an error occurs while calculating the checksum.
+/*
+GetFileChecksum calculates the checksum for a file. This function is responsible for file operations,
+and only delegates the checksum calculation methods to the caller to simplify operations.
+
+Parameters:
+  - filename: Name of the file to process.
+  - headerSize: Length of the file header. Can be greater than or equal to the file length.
+  - buf: Buffer for reading the file. Can be []byte or int. The former directly provides the buffer for reuse;
+    the latter sets the buffer length for the function to create the buffer itself.
+  - calculator: The function that performs the checksum calculation, cannot be nil.
+  - headerReadyHandler: Callback function after the header checksum is calculated.
+    Can be nil, indicating no need to calculate header checksum separately.
+    Cannot be nil if fullReadyHandler is nil.
+  - fullReadyHandler: Callback function after the full checksum is calculated.
+    Can be nil, indicating no need for full checksum.
+    Cannot be nil if headerReadyHandler is nil.
+
+Returns:
+  - an error if any of the arguments are invalid or an error occurs while calculating the checksum.
+
+GetFileChecksum 计算文件的校验值。本函数负责文件操作，仅把校验各计算方法将由调用者实现，简化其操作。
+
+参数:
+  - filename: 待处理的文件名。
+  - headerSize: 文件头长度。可能大于等于文件长度。
+  - buf: 读取文件的缓冲区。可以是 []byte 或 int。前者直接提供缓冲区，达到复用目的；后者设置缓冲区长度，由函数自己创建缓冲区。
+  - calculator: 执行校验和计算的函数，不能为 nil。
+  - headerReadyHandler: 头部校验值计算完成后的回调函数。可为 nil，表示不需要单独计算头部校验值。不能与 fullReadyHandler 同时为 nil。
+  - fullReadyHandler: 全部校验值计算完成后的回调函数。可为 nil，表示不需要完整校验值。不能与 headerReadyHandler 同时为 nil。
+
+返回:
+  - 错误信息。
+*/
 func GetFileChecksum[T int | []byte](
 	filename string,
 	headerSize int,

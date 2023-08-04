@@ -15,7 +15,11 @@ var ErrReasonMaxSize = errors.New("file size is larger than max size")
 var ErrReasonInExclude = errors.New("file name matches exclude")
 var ErrReasonNotInInclude = errors.New("file name does not match include")
 
-// Filter defines conditions to filter files.
+/*
+Filter defines conditions to filter files.
+
+Filter 定义了针对文件的过滤条件。
+*/
 type Filter struct {
 	CaseSensitive bool     `mapstructure:"caseSensitive"` // Case sensitive flag. If true, include and exclude patterns are case sensitive.
 	Include       []string `mapstructure:"include"`       // Only files matching at least one pattern will be included. Supports glob patterns.
@@ -24,37 +28,71 @@ type Filter struct {
 	MaxFileSize   int64    `mapstructure:"maxFileSize"`   // Maximum file size in bytes. Files larger than this will be excluded. 0 means no limit.
 }
 
-// FilterConsumer is a function type that filters file and consumes them.
-//
-// Takes in file's full path and its info object.
-//
-// Returns an error if any, or filepath.SkipDir and filepath.SkipAll to terminate scan.
-type FilterConsumer func(path string, info os.FileInfo) error
+/*
+FilteredFileHandler is a function type that receives and processes filtered files.
 
-// IsRefusedReason checks if the given error is one of the refused reasons.
-//
-// err - the error to be checked. It returned by AcceptFile()，
-// which is usally not treated as an error.
-//
-// Returns a boolean indicating whether the error is a refused reason or not.
+Parameters:
+  - path: Path of the file that meets the filter condition.
+  - info: Information of the file that meets the filter condition.
+
+Returns:
+  - an error if any, or filepath.SkipDir and filepath.SkipAll to terminate scan.
+
+FilteredFileHandler 是一个函数类型，它接收并处理过滤后文件。
+
+参数:
+  - path: 符合过滤条件的文件路径。
+  - info: 符合过滤条件的文件信息。
+
+返回:
+  - 错误信息，或者 filepath.SkipDir 及 filepath.SkipAll 中断处理。
+*/
+type FilteredFileHandler func(path string, info os.FileInfo) error
+
+/*
+IsRefusedReason checks if the given error is one of the predefined refused reasons.
+
+Parameters:
+  - err: the error to check.
+
+Returns:
+  - true if the error is one of the predefined refused reasons.
+
+IsRefusedReason 检查给定的错误是否为预定义的拒绝原因。
+
+参数:
+  - err: 待检查的错误。
+
+返回:
+  - 如果是预定义的拒绝原因，返回 true。
+*/
 func IsRefusedReason(err error) bool {
 	return err == ErrReasonInExclude || err == ErrReasonNotInInclude ||
 		err == ErrReasonIsDir || err == ErrReasonMinSize || err == ErrReasonMaxSize
 }
 
-// GetEachFile scans the specified directory and applies the FilterComsumer function
-// to every file that matches the filter. The recursive parameter specifies if
-// subdirectories should also be scanned. Returns an error if the Filter is invalid
-// or if there is an error scanning the directory.
-//
-// root: the root directory to scan.
-//
-// recursive: whether to scan subdirectories.
-//
-// comsumer: the function to apply to each file that matches the filter.
-//
-// Returns an error if there is one.
-func (f *Filter) GetEachFile(root string, recursive bool, comsumer FilterConsumer) error {
+/*
+GetEachFile scans the specified directory and calls [FilteredFileHandler] to process each file that meets the filter condition.
+
+Parameters:
+  - root: The directory to scan.
+  - recursive: Whether to scan subdirectories recursively.
+  - handler: Callback function to handle files that meet the filter condition. Cannot be nil.
+
+Returns:
+  - Error message.
+
+GetEachFile 扫描指定的目录，并调用 [FilteredFileHandler] 处理每个满足过滤条件的文件。
+
+参数:
+  - root: 要扫描的目录。
+  - recursive: 是否递归扫描子目录。
+  - handler: 处理满足过滤条件的文件回调函数。不能为 nil。
+
+返回:
+  - 错误信息。
+*/
+func (f *Filter) GetEachFile(root string, recursive bool, handler FilteredFileHandler) error {
 	// 先保证 Filter 中的配置项有效。
 	if err := f.Validate(); err != nil {
 		return err
@@ -81,8 +119,8 @@ func (f *Filter) GetEachFile(root string, recursive bool, comsumer FilterConsume
 			return nil
 		}
 
-		if f.AcceptFile(info) == nil {
-			err = comsumer(path, info)
+		if f.IsQulifiedFile(info) == nil {
+			err = handler(path, info)
 		}
 
 		return err
@@ -95,17 +133,27 @@ func (f *Filter) GetEachFile(root string, recursive bool, comsumer FilterConsume
 	return walkErr
 }
 
-// GetFiles returns a slice of files from a given root directory and boolean
-// flag indicating whether or not to include subdirectories. The function
-// preallocates space to avoid multiple expansions of the slice. It returns a
-// pointer to the resulting slice and an error, if any.
-//
-// root: the root directory to search for files
-//
-// recursive: a boolean flag indicating whether or not to include
-// subdirectories in the search
-//
-// *[]string, error: a pointer to a slice of filename and an error, if any
+/*
+GetFiles returns all file names under the given directory that meet the filter condition.
+
+Parameters:
+  - root: The directory to search.
+  - recursive: Whether to search subdirectories recursively.
+
+Returns:
+  - Array of file names.
+  - Error message.
+
+GetFiles 返回所有给定目录下符合过滤条件的文件名。
+
+参数:
+  - root: 要搜索的目录。
+  - recursive: 是否递归搜索子目录。
+
+返回:
+  - 文件名数组。
+  - 错误信息。
+*/
 func (f *Filter) GetFiles(root string, recursive bool) (*[]string, error) {
 	// 遍历目录可能获得多个文件，为避免过多的对数组进行扩展，预分配空间。
 	// 也不必过大，因为毕竟有时返回数量也较小。。
@@ -123,12 +171,24 @@ func (f *Filter) GetFiles(root string, recursive bool) (*[]string, error) {
 	return &result, nil
 }
 
-// AcceptFile checks if the given file should be accepted or rejected based on the filter criteria.
-//
-// fileInfo: The information about the file.
-//
-// error: An error indicating the reason for rejecting the file, if applicable.
-func (f *Filter) AcceptFile(fileInfo os.FileInfo) error {
+/*
+IsQulifiedFile checks whether the given file should meet the filter condition.
+
+Parameters:
+  - fileInfo: The file info object.
+
+Returns:
+  - Error message. Returns nil if the file meets the filter condition.
+
+IsQulifiedFile 检查给定的文件是否应符合过滤条件。
+
+参数:
+  - fileInfo: 文件信息对象。
+
+返回:
+  - 错误信息。符合过滤条件返回 nil。
+*/
+func (f *Filter) IsQulifiedFile(fileInfo os.FileInfo) error {
 	if fileInfo.IsDir() {
 		return ErrReasonIsDir
 	} else if fileInfo.Size() < f.MinFileSize && f.MinFileSize > 0 {
