@@ -7,8 +7,21 @@ import (
 	"time"
 )
 
-// RequireDateTimeFieldValid 定义是否要求日期时间各字段的值都在范围内。默认为 true。
-// 该值为全局设置，会影响后续所有操作。
+/*
+RequireDateTimeFieldValid defines whether to require the date time fields to be within valid ranges.
+Default is true. This is a global setting and will affect all subsequent operations.
+
+Example:
+
+	RequireDateTimeFieldValid = true
+	tm = ParseDateTime("2010-13-23")	// nil because the month is 13. it is out of range.
+
+	RequireDateTimeFieldValid = false
+	tm = ParseDateTime("2010-13-23")	// 2011-01-23 00:00:00. It is what GO is going to parse.
+
+RequireDateTimeFieldValid 定义是否要求日期时间各字段的值都在范围内。默认为 true。
+该值为全局设置，会影响后续所有操作。
+*/
 var RequireDateTimeFieldValid = true
 
 // regexUnixTime 是用于 UnixTime 的正则表达式：
@@ -17,6 +30,31 @@ var RequireDateTimeFieldValid = true
 // 3. 可以再有 3 位数字代表毫秒数。不足不算。
 var regexUnixTime = regexp.MustCompile(`^.*?(\d{1,10})(\d{3})?.*`)
 
+/*
+ParseUnixTime separates consecutive 1 to 13 digit numbers from the input string and
+converts them to time variables using Unix time format.
+Seconds with 1 to 10 digits. Followed by milliseconds with 3 digits, insufficient digits are ignored.
+
+Parameters:
+  - s: The string to parse
+
+Returns:
+  - The parsed time. nil is returned on failure.
+
+Example:
+
+	tm := ParseUnixTime("snapshot_1553867509757.png") // 2019-03-29 21:51:49.757
+	tm = ParseUnixTime("155386750975abcd")            // 2019-03-29 21:51:49.000
+
+ParseUnixTime 从字符串中分离出连续的 1 到 13 位的数字，并将其按 Unix 时间格式转转为时间变量。
+秒数 1 到 10 位。后续紧跟毫秒数 3 位，不足不算。
+
+参数:
+  - s: 待解析的字符串。
+
+返回:
+  - 解析后的时间。失败均返回 nil。
+*/
 func ParseUnixTime(s string) *time.Time {
 	subs := regexUnixTime.FindStringSubmatch(s)
 	count := len(subs)
@@ -63,6 +101,40 @@ var regexDateTimeHasSep = regexp.MustCompile(
 	`^.*?(\d{4})[-|_|\.|](\d{1,2})[-|_|\.|](\d{1,2})[-|_|\.| |T]` +
 		`(\d{1,2})[-|_|\.|\:|](\d{2})([-|_|\.|\:|](\d{2})(\.(\d{3}))?)?.*`)
 
+/*
+ParseDateTime parses date time strings into time variables.
+
+Parameters:
+  - s: The string to parse. Milliseconds must be 3 digits, otherwise that value is not parsed.
+
+Returns:
+  - The parsed time. nil is returned on failure.
+
+Example:
+
+	// no seperator between fields.
+	tm = ParseDateTime("abc20100223-1534ddd.jpg")      // 2010-02-23 15:34:00
+	tm = ParseDateTime("20100223.153456.789ddd.jpg")   // 2010-02-23 15:34:56.789
+	tm = ParseDateTime("20100223153456789")            // 2010-02-23 15:34:56.789
+	tm = ParseDateTime("20100223 1534567")             // 2010-02-23 15:34:56.000
+
+	tm = ParseDateTime("20100223")                     // nil because no time fields.
+	tm = ParseDateTime("201022231234")                 // nil because month is 22. it's out of range.
+
+	// has seperator between fields.
+	tm = ParseDateTime("abc2010-02-23-15:34ddd.jpg")   // 2010-02-23 15:34:00
+	tm = ParseDateTime("2010_2-23.5.34.56.789ddd.jpg") // 2010-02-23 05:34:56.789
+	tm = ParseDateTime("2010.02.23T15-34_56.789")      // 2010-02-23 15:34:56.789
+	tm = ParseDateTime("2010-02-23 15:34:56.7")        // 2010-02-23 15:34:56.000
+
+ParseDateTime 将日期时间字符串转换为时间变量。
+
+参数:
+  - s: 待解析的字符串。毫秒必需是 3 位，否则不解析该值。
+
+返回:
+  - 解析后的时间。失败均返回 nil。
+*/
 func ParseDateTime(s string) *time.Time {
 	parse := func(s string, regex *regexp.Regexp) *time.Time {
 		subs := regex.FindStringSubmatch(s)
@@ -110,6 +182,23 @@ var regexDateHasSep = regexp.MustCompile(`^.*?(\d{4})[-|_|\.|](\d{1,2})[-|_|\.|]
 //  2. 日期数字之间无分隔符，需要至少 8 位数字表示 YYYYMMDD。
 var regexDateNoSep = regexp.MustCompile(`^.*?(\d{4})(\d{2})(\d{2}).*`)
 
+/*
+ParseDate parses date strings into time variables.
+
+Parameters:
+  - s: The string to parse. see examples of [ParseDateTime].
+
+Returns:
+  - The parsed date. nil is returned on failure.
+
+ParseDate 将日期字符串转换为时间变量。
+
+参数:
+  - s: 待解析的字符串。参考 [ParseDateTime] 的示例。
+
+返回:
+  - 解析后的日期。失败均返回 nil。
+*/
 func ParseDate(s string) *time.Time {
 	parse := func(s string, regex *regexp.Regexp) *time.Time {
 		subs := regex.FindStringSubmatch(s)
@@ -191,6 +280,24 @@ var regexTimeNoSep = regexp.MustCompile(`^.*?(\d{2})(\d{2})((\d{2})(\.?(\d{3}))?
 //     小时 1 或 2 位，分钟和秒都是 2 位，毫秒是 3 位。可以精确到分钟、秒或毫秒。
 var regexTimeHasSep = regexp.MustCompile(`^.*?(\d{1,2})[-|_|\.|\:|](\d{2})([-|_|\.|\:|](\d{2})(\.(\d{3}))?)?.*`)
 
+/*
+ParseTime parses time strings into time variables.
+
+Parameters:
+  - s: The string to parse.  Milliseconds must be 3 digits, otherwise that value is not parsed.
+    see examples of [ParseDateTime].
+
+Returns:
+  - The parsed time. nil is returned on failure.
+
+ParseTime 将日期字符串转换为时间变量。
+
+参数:
+  - s: 待解析的字符串。毫秒必需是 3 位，否则不解析该值。参考 [ParseDateTime] 的示例。
+
+返回:
+  - 解析后的时间。失败均返回 nil。
+*/
 func ParseTime(s string) *time.Time {
 	parse := func(s string, regex *regexp.Regexp) *time.Time {
 		subs := regex.FindStringSubmatch(s)

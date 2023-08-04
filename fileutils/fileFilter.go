@@ -9,11 +9,14 @@ import (
 	"strings"
 )
 
-var ErrReasonIsDir = errors.New("file is a directory")
-var ErrReasonMinSize = errors.New("file size is less than min size")
-var ErrReasonMaxSize = errors.New("file size is larger than max size")
-var ErrReasonInExclude = errors.New("file name matches exclude")
-var ErrReasonNotInInclude = errors.New("file name does not match include")
+// 一组预定义的文件未满足过滤条件的原因的错误类型。
+var (
+	ErrReasonIsDir        = errors.New("file is a directory")
+	ErrReasonMinSize      = errors.New("file size is less than min size")
+	ErrReasonMaxSize      = errors.New("file size is larger than max size")
+	ErrReasonInExclude    = errors.New("file name matches exclude")
+	ErrReasonNotInInclude = errors.New("file name does not match include")
+)
 
 /*
 Filter defines conditions to filter files.

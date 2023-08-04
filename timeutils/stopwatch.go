@@ -5,6 +5,11 @@ import (
 	"time"
 )
 
+/*
+Stopwatch is a stopwatch.
+
+Stopwatch 定义了一个计时器。
+*/
 type Stopwatch struct {
 	isRunning   bool
 	startTime   time.Time
@@ -14,12 +19,20 @@ type Stopwatch struct {
 
 var zeroTime time.Time
 
-// IsRunning indicates whether the stopwatch is currently running.
+/*
+IsRunning indicates whether the stopwatch is currently running.
+
+IsRunning 返回 Stopwatch 是否正在运行。
+*/
 func (s *Stopwatch) IsRunning() bool {
 	return s.isRunning
 }
 
-// Restart reset everything and starts the stopwatch regardless of whether it is running or not.
+/*
+Restart resets all information in the Stopwatch and starts timing again.
+
+Restart 重置 Stopwatch 的所有信息，并且重新开始计时。
+*/
 func (s *Stopwatch) Restart() {
 	s.lock.Lock()
 	defer s.lock.Unlock()
@@ -29,8 +42,12 @@ func (s *Stopwatch) Restart() {
 	s.elapsedTime = 0
 }
 
-// Start starts or resumes the stopwatch.
-// Do nothing when stopwatch is currently running.
+/*
+Start If previously paused by [Pause], resumes the timing. Otherwise, restarts the timing.
+If the Stopwatch is already running, there is no effect.
+
+Start 如果前一次由 [Pause] 暂停，则继续计时。否则，重新开始计时。。如果 Stopwatch 已经正在运行，则无操作。
+*/
 func (s *Stopwatch) Start() {
 	s.lock.Lock()
 	defer s.lock.Unlock()
@@ -47,8 +64,11 @@ func (s *Stopwatch) Start() {
 	}
 }
 
-// Stop stops the stopwatch and record the ElapsedTime.
-// Do nothing when stopwatch is not currently running.
+/*
+Stop stops the stopwatch. If the Stopwatch is not running, there is no effect.
+
+Stop 停止计时。如果 Stopwatch 已经未运行，则无操作。
+*/
 func (s *Stopwatch) Stop() {
 	s.lock.Lock()
 	defer s.lock.Unlock()
@@ -62,8 +82,11 @@ func (s *Stopwatch) Stop() {
 	}
 }
 
-// Pause pauses the stopwatch and update the ElapsedTime.
-// Do nothing when stopwatch is not currently running.
+/*
+Pause pauses the stopwatch. If the Stopwatch is not running, there is no effect.
+
+Pause 暂停计时。如果 Stopwatch 已经未运行，则无操作。
+*/
 func (s *Stopwatch) Pause() {
 	s.lock.Lock()
 	defer s.lock.Unlock()
@@ -76,7 +99,7 @@ func (s *Stopwatch) Pause() {
 
 // ElapsedTime returns the elapsed time of the Stopwatch.
 //
-// Returns a time.Duration representing the elapsed time.
+// ElapsedTime 返回 Stopwatch 的运行时间。
 func (s *Stopwatch) ElapsedTime() time.Duration {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
@@ -88,12 +111,25 @@ func (s *Stopwatch) ElapsedTime() time.Duration {
 	}
 }
 
-// Elapsing executes the given function and returns the elapsed time and error.
-//
-// The function fn is executed after restarting the stopwatch. The stopwatch is then stopped
-// after executing the function. The elapsed time is returned along with any error that occurred.
-//
-// The return type is time.Duration and error.
+/*
+Elapsing runs the given function and returns the elapsed time.
+
+Parameters:
+  - fn: The function to execute. Can't be nil.
+
+Returns:
+  - The elapsed time.
+  - Error message.
+
+Elapsing 运行给定的函数并返回运行时间。
+
+参数:
+  - fn: 要执行的函数。不能为 nil。
+
+返回:
+  - 运行时长。
+  - 错误信息。
+*/
 func (s *Stopwatch) Elapsing(fn func() error) (time.Duration, error) {
 	s.Restart()
 	defer s.Stop()
