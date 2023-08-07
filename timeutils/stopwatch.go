@@ -46,7 +46,7 @@ func (s *Stopwatch) Restart() {
 Start If previously paused by [Pause], resumes the timing. Otherwise, restarts the timing.
 If the Stopwatch is already running, there is no effect.
 
-Start 如果前一次由 [Pause] 暂停，则继续计时。否则，重新开始计时。。如果 Stopwatch 已经正在运行，则无操作。
+Start 如果前一次由 [Pause] 暂停，则继续计时。否则，重新开始计时。如果 Stopwatch 当前正在运行，则无操作。
 */
 func (s *Stopwatch) Start() {
 	s.lock.Lock()
@@ -67,7 +67,7 @@ func (s *Stopwatch) Start() {
 /*
 Stop stops the stopwatch. If the Stopwatch is not running, there is no effect.
 
-Stop 停止计时。如果 Stopwatch 已经未运行，则无操作。
+Stop 停止计时。如果 Stopwatch 当前未运行，则无操作。
 */
 func (s *Stopwatch) Stop() {
 	s.lock.Lock()
@@ -85,7 +85,7 @@ func (s *Stopwatch) Stop() {
 /*
 Pause pauses the stopwatch. If the Stopwatch is not running, there is no effect.
 
-Pause 暂停计时。如果 Stopwatch 已经未运行，则无操作。
+Pause 暂停计时。如果 Stopwatch 当前未运行，则无操作。
 */
 func (s *Stopwatch) Pause() {
 	s.lock.Lock()
@@ -115,7 +115,7 @@ func (s *Stopwatch) ElapsedTime() time.Duration {
 Elapsing runs the given function and returns the elapsed time.
 
 Parameters:
-  - fn: The function to execute. Can't be nil.
+  - task: The function to execute. Can't be nil.
 
 Returns:
   - The elapsed time.
@@ -124,16 +124,16 @@ Returns:
 Elapsing 运行给定的函数并返回运行时间。
 
 参数:
-  - fn: 要执行的函数。不能为 nil。
+  - task: 要执行的函数。不能为 nil。
 
 返回:
   - 运行时长。
   - 错误信息。
 */
-func (s *Stopwatch) Elapsing(fn func() error) (time.Duration, error) {
+func (s *Stopwatch) Elapsing(task func() error) (time.Duration, error) {
 	s.Restart()
 	defer s.Stop()
 
-	err := fn()
+	err := task()
 	return s.ElapsedTime(), err
 }

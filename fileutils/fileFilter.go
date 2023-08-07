@@ -32,7 +32,7 @@ type Filter struct {
 }
 
 /*
-FilteredFileHandler is a function type that receives and processes filtered files.
+MatchedFileHandler is a function type that receives and processes filtered files.
 
 Parameters:
   - path: Path of the file that meets the filter condition.
@@ -41,7 +41,7 @@ Parameters:
 Returns:
   - an error if any, or filepath.SkipDir and filepath.SkipAll to terminate scan.
 
-FilteredFileHandler 是一个函数类型，它接收并处理过滤后文件。
+MatchedFileHandler 是一个函数类型，它接收并处理过滤后文件。
 
 参数:
   - path: 符合过滤条件的文件路径。
@@ -50,7 +50,7 @@ FilteredFileHandler 是一个函数类型，它接收并处理过滤后文件。
 返回:
   - 错误信息，或者 filepath.SkipDir 及 filepath.SkipAll 中断处理。
 */
-type FilteredFileHandler func(path string, info os.FileInfo) error
+type MatchedFileHandler func(path string, info os.FileInfo) error
 
 /*
 IsRefusedReason checks if the given error is one of the predefined refused reasons.
@@ -95,7 +95,7 @@ GetEachFile 扫描指定的目录，并调用 [FilteredFileHandler] 处理每个
 返回:
   - 错误信息。
 */
-func (f *Filter) GetEachFile(root string, recursive bool, handler FilteredFileHandler) error {
+func (f *Filter) GetEachFile(root string, recursive bool, handler MatchedFileHandler) error {
 	// 先保证 Filter 中的配置项有效。
 	if err := f.Validate(); err != nil {
 		return err
@@ -122,7 +122,7 @@ func (f *Filter) GetEachFile(root string, recursive bool, handler FilteredFileHa
 			return nil
 		}
 
-		if f.IsQulifiedFile(info) == nil {
+		if f.IsMatched(info) == nil {
 			err = handler(path, info)
 		}
 
@@ -175,23 +175,23 @@ func (f *Filter) GetFiles(root string, recursive bool) (*[]string, error) {
 }
 
 /*
-IsQulifiedFile checks whether the given file should meet the filter condition.
+IsMatched checks whether the given file should meet the filter condition.
 
 Parameters:
-  - fileInfo: The file info object.
+  - fileInfo: The file info object. Cann't be nil.
 
 Returns:
   - Error message. Returns nil if the file meets the filter condition.
 
-IsQulifiedFile 检查给定的文件是否应符合过滤条件。
+IsMatched 检查给定的文件是否应符合过滤条件。
 
 参数:
-  - fileInfo: 文件信息对象。
+  - fileInfo: 文件信息对象。不可为 nil。
 
 返回:
   - 错误信息。符合过滤条件返回 nil。
 */
-func (f *Filter) IsQulifiedFile(fileInfo os.FileInfo) error {
+func (f *Filter) IsMatched(fileInfo os.FileInfo) error {
 	if fileInfo.IsDir() {
 		return ErrReasonIsDir
 	} else if fileInfo.Size() < f.MinFileSize && f.MinFileSize > 0 {
@@ -224,6 +224,13 @@ func (f *Filter) IsQulifiedFile(fileInfo os.FileInfo) error {
 	return ErrReasonNotInInclude
 }
 
+/*
+Diff compares the contents of two [Filter] objects to see if they are identical.
+If the contents are the same, an empty string will be returned;
+otherwise difference information will be returned.
+
+Diff 比较两个 [Filter] 对象的内容是否相同。如果两者内容相同，则返回空字符串；否则返回差异信息。
+*/
 func (f *Filter) Diff(other *Filter) string {
 	if f == other {
 		return ""
@@ -247,6 +254,12 @@ func (f *Filter) Diff(other *Filter) string {
 	return ""
 }
 
+/*
+Validate validates the condition settings of [Filter].
+It returns nil if no error, otherwise returns error message.
+
+Validate 校验 [Filter] 的条件信息。返回 nil 表示正常，否则为错误信息。
+*/
 func (f *Filter) Validate() error {
 	if f.MaxFileSize < 0 {
 		f.MaxFileSize = 0
