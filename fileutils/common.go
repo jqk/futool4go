@@ -95,3 +95,38 @@ func CopyDir(source, target string) error {
 		return nil
 	})
 }
+
+/*
+GetDirSize returns the size of a directory.
+
+Parameters:
+  - dir: the directory path.
+
+Returns:
+  - the size of the directory.
+  - an error if any occurred during the process.
+
+GetDirSize 返回目录的大小。
+
+参数:
+  - dir: 目录路径。
+
+返回:
+  - 目录大小。
+  - 错误信息。
+*/
+func GetDirSize(dir string) (int64, error) {
+	var size int64 = 0
+
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			size += info.Size()
+		}
+		return nil
+	})
+
+	return size, err
+}
