@@ -130,3 +130,45 @@ func GetDirSize(dir string) (int64, error) {
 
 	return size, err
 }
+
+/*
+GetDirStatistics returns the statistics of a directory.
+
+Parameters:
+  - dir: the directory path.
+
+Returns:
+  - the number of directories.
+  - the number of files.
+  - the size of the directory.
+  - an error if any occurred during the process.
+
+GetDirStatistics 返回目录统计信息。
+
+参数:
+  - dir: 目录路径。
+
+返回:
+  - 目录数量。
+  - 文件数量。
+  - 目录整体字节大小。
+  - 错误信息。
+*/
+func GetDirStatistics(dir string) (dirCount int, fileCount int, size int64, err error) {
+	err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if info.IsDir() {
+			dirCount++
+		} else {
+			fileCount++
+			size += info.Size()
+		}
+
+		return nil
+	})
+
+	return dirCount, fileCount, size, err
+}
