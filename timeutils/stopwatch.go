@@ -14,10 +14,9 @@ type Stopwatch struct {
 	isRunning   bool
 	startTime   time.Time
 	elapsedTime time.Duration
+	records     []time.Duration
 	lock        sync.RWMutex
 }
-
-var zeroTime time.Time
 
 /*
 IsRunning indicates whether the stopwatch is currently running.
@@ -37,31 +36,47 @@ func (s *Stopwatch) Restart() {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	s.isRunning = true
-	s.startTime = time.Now()
-	s.elapsedTime = 0
+	stop(s)
+	reset(s)
+	start(s)
 }
 
 /*
-Start If previously paused by [Pause], resumes the timing. Otherwise, restarts the timing.
-If the Stopwatch is already running, there is no effect.
+Reset resets all information in the Stopwatch. If the Stopwatch is already running, there is no effect.
 
-Start 如果前一次由 [Pause] 暂停，则继续计时。否则，重新开始计时。如果 Stopwatch 当前正在运行，则无操作。
+Start 重置计时器。如果 Stopwatch 当前正在运行，则无操作。
+*/
+func (s *Stopwatch) Reset() {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
+	if !s.isRunning {
+		reset(s)
+	}
+}
+
+func reset(s *Stopwatch) {
+	s.elapsedTime = 0
+	s.records = s.records[0:0]
+}
+
+/*
+Start or resume timing. If the Stopwatch is already running, there is no effect.
+
+Start 开始或继续计时。如果 Stopwatch 当前正在运行，则无操作。
 */
 func (s *Stopwatch) Start() {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
 	if !s.isRunning {
-		if s.startTime == zeroTime {
-			// startTime 为零，说明 stopwatch 未曾启动或经由 Stop() 停止了，
-			// 而不是由 Pause() 暂停的，所以无需继续计时，而是重新开始。
-			s.elapsedTime = 0
-		}
-
-		s.isRunning = true
-		s.startTime = time.Now()
+		start(s)
 	}
+}
+
+func start(s *Stopwatch) {
+	s.isRunning = true
+	s.startTime = time.Now()
 }
 
 /*
@@ -74,27 +89,37 @@ func (s *Stopwatch) Stop() {
 	defer s.lock.Unlock()
 
 	if s.isRunning {
-		s.isRunning = false
-		// 继续累加时间。因为有可能是经过 Pause() 后又 Start() 了。
-		s.elapsedTime += time.Since(s.startTime)
-		// zeroTime 主要供判断是否经过 Pause() 后暂停。
-		s.startTime = zeroTime
+		stop(s)
 	}
 }
 
-/*
-Pause pauses the stopwatch. If the Stopwatch is not running, there is no effect.
+func stop(s *Stopwatch) {
+	s.isRunning = false
+	s.elapsedTime += time.Since(s.startTime)
+}
 
-Pause 暂停计时。如果 Stopwatch 当前未运行，则无操作。
+/*
+Record records the lap time or split time when stopwatch is running.
+
+Returns:
+  - Elapsed time array, arranged in the order of calling Record().
+    The elapsed time for all is calculated from the first Start().
+
+Record 在 Stopwatch 正在运行时记录当前的一段时间。
+
+返回:
+  - 耗时数组，按调用 Record() 的顺序排列。所有耗时时间都是从第一次 Start() 开始计算的。
 */
-func (s *Stopwatch) Pause() {
-	s.lock.Lock()
-	defer s.lock.Unlock()
+func (s *Stopwatch) Record() []time.Duration {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
 
 	if s.isRunning {
-		s.isRunning = false
-		s.elapsedTime += time.Since(s.startTime)
+		elapsed := s.elapsedTime + time.Since(s.startTime)
+		s.records = append(s.records, elapsed)
 	}
+
+	return append([]time.Duration{}, s.records...)
 }
 
 // ElapsedTime returns the elapsed time of the Stopwatch.
