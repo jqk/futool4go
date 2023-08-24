@@ -136,6 +136,7 @@ GetDirStatistics returns the statistics of a directory.
 
 Parameters:
   - dir: the directory path.
+  - includeSubDir: whether to include sub directories. default is true.
 
 Returns:
   - the number of directories.
@@ -147,6 +148,7 @@ GetDirStatistics 返回目录统计信息。
 
 参数:
   - dir: 目录路径。
+  - includeSubDir: 是否包含子目录。默认为 true。
 
 返回:
   - 目录数量。
@@ -154,13 +156,30 @@ GetDirStatistics 返回目录统计信息。
   - 目录整体字节大小。
   - 错误信息。
 */
-func GetDirStatistics(dir string) (dirCount int, fileCount int, size int64, err error) {
+func GetDirStatistics(dir string, includeSubDir ...bool) (dirCount int, fileCount int, size int64, err error) {
+	// 未指定 includeSubDir 参数时，默认为 true。指定多个参数时也只有第一个有效。
+	include := true
+	if len(includeSubDir) > 0 {
+		include = includeSubDir[0]
+	}
+
+	isSubDir := false
+
 	err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 
 		if info.IsDir() {
+			if !include {
+				// 第一次到达这里，必然是整个函数的参数 dir 目录，所以 isSubDir 为 false。
+				if isSubDir {
+					return filepath.SkipAll
+				}
+				// 以后是子目录了，所以设置 isSubDir 为 true。
+				isSubDir = true
+			}
+
 			dirCount++
 		} else {
 			fileCount++
