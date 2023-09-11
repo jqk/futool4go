@@ -25,10 +25,11 @@ var filter *Filter = &Filter{
 var testPath = "../test-data/fileutils/filter"
 
 func TestGetEachFileIncludingSubDir(t *testing.T) {
+	option := NewWalkOption()
 	result := make(map[string]bool)
 	filter.CaseSensitive = false
 
-	err := filter.GetEachFile(testPath, true, func(path string, info os.FileInfo) error {
+	err := filter.GetEachFile(testPath, option, func(path string, info os.FileInfo) error {
 		result[info.Name()] = true
 		return nil
 	})
@@ -40,7 +41,7 @@ func TestGetEachFileIncludingSubDir(t *testing.T) {
 	result = make(map[string]bool)
 	filter.CaseSensitive = true
 
-	err = filter.GetEachFile(testPath, true, func(path string, info os.FileInfo) error {
+	err = filter.GetEachFile(testPath, option, func(path string, info os.FileInfo) error {
 		result[info.Name()] = true
 		return nil
 	})
@@ -52,10 +53,13 @@ func TestGetEachFileIncludingSubDir(t *testing.T) {
 }
 
 func TestGetEachFileExcludingSubDir(t *testing.T) {
+	option := &WalkOption{
+		Recursive: false,
+	}
 	result := make(map[string]bool)
 	filter.CaseSensitive = false
 
-	err := filter.GetEachFile(testPath, false, func(path string, info os.FileInfo) error {
+	err := filter.GetEachFile(testPath, option, func(path string, info os.FileInfo) error {
 		result[info.Name()] = true
 		return nil
 	})
@@ -66,8 +70,9 @@ func TestGetEachFileExcludingSubDir(t *testing.T) {
 
 	result = make(map[string]bool)
 	filter.CaseSensitive = true
+	option.Recursive = true
 
-	err = filter.GetEachFile(testPath, false, func(path string, info os.FileInfo) error {
+	err = filter.GetEachFile(testPath, option, func(path string, info os.FileInfo) error {
 		result[info.Name()] = true
 		return nil
 	})
@@ -78,11 +83,14 @@ func TestGetEachFileExcludingSubDir(t *testing.T) {
 }
 
 func TestGetEachFileSkipDir(t *testing.T) {
+	option := &WalkOption{
+		Recursive: true,
+	}
 	result := make(map[string]bool)
 	filter.CaseSensitive = false
 	count := 0
 
-	err := filter.GetEachFile(testPath, true, func(path string, info os.FileInfo) error {
+	err := filter.GetEachFile(testPath, option, func(path string, info os.FileInfo) error {
 		result[info.Name()] = true
 		count++
 
@@ -100,9 +108,12 @@ func TestGetEachFileSkipDir(t *testing.T) {
 }
 
 func TestGetFiles(t *testing.T) {
+	option := &WalkOption{
+		Recursive: true,
+	}
 	filter.CaseSensitive = false
 
-	result, err := filter.GetFiles(testPath, true)
+	result, err := filter.GetFiles(testPath, option)
 	assert.Nil(t, err)
 	assert.Equal(t, 5, len(*result))
 }

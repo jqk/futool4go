@@ -79,7 +79,7 @@ GetEachFile scans the specified directory and calls [FilteredFileHandler] to pro
 
 Parameters:
   - root: The directory to scan.
-  - recursive: Whether to scan subdirectories recursively.
+  - option: the scan options. if nil, the default options will be used.
   - handler: Callback function to handle files that meet the filter condition. Cannot be nil.
 
 Returns:
@@ -89,35 +89,29 @@ GetEachFile 扫描指定的目录，并调用 [FilteredFileHandler] 处理每个
 
 参数:
   - root: 要扫描的目录。
-  - recursive: 是否递归扫描子目录。
+  - option: 扫描选项。如果为 nil 则使用默认选项。
   - handler: 处理满足过滤条件的文件回调函数。不能为 nil。
 
 返回:
   - 错误信息。
 */
-func (f *Filter) GetEachFile(root string, recursive bool, handler MatchedFileHandler) error {
-	// 先保证 Filter 中的配置项有效。
-	if err := f.Validate(); err != nil {
+func (f *Filter) GetEachFile(root string, option *WalkOption, handler MatchedFileHandler) error {
+	if err := f.Validate(); err != nil { // 先保证 Filter 中的配置项有效。
 		return err
 	}
-
-	skipAll := false
+	if option == nil { // 保证 option 不为 nil。
+		option = NewWalkOption()
+	}
 
 	walkErr := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
+			if option.PathErrorHandler != nil {
+				return option.PathErrorHandler(path, info, err)
+			}
 			return err
 		} else if info.IsDir() {
-			// 在 Walk() 中，对每个目录都重生以下操作：先给目录，再给目录下的文件，最后给目录下的子目录。
-			if !recursive {
-				// 第一次走到这里，就是 Root 目录。
-				// 第二次走到这里，就是 Root 目录下的第一个子目录，依此类推。
-				// 在两次到达此处之间，上一次目录下的文件都会在后面的逻辑中处理。
-				if skipAll {
-					return filepath.SkipAll
-				}
-
-				// 第一次时为 false，此处设为 ture，第二次是就直接返回 SkipAll 了。
-				skipAll = true
+			if option.ShouldQuitForNonRecursive() {
+				return filepath.SkipAll
 			}
 			return nil
 		}
@@ -129,8 +123,8 @@ func (f *Filter) GetEachFile(root string, recursive bool, handler MatchedFileHan
 		return err
 	})
 
-	if walkErr != nil && walkErr != filepath.SkipAll && walkErr != filepath.SkipDir {
-		return nil
+	if walkErr == filepath.SkipAll || walkErr == filepath.SkipDir {
+		walkErr = nil
 	}
 
 	return walkErr
@@ -141,7 +135,7 @@ GetFiles returns all file names under the given directory that meet the filter c
 
 Parameters:
   - root: The directory to search.
-  - recursive: Whether to search subdirectories recursively.
+  - option: the scan options. if nil, the default options will be used.
 
 Returns:
   - Array of file names.
@@ -151,18 +145,18 @@ GetFiles 返回所有给定目录下符合过滤条件的文件名。
 
 参数:
   - root: 要搜索的目录。
-  - recursive: 是否递归搜索子目录。
+  - option: 扫描选项。如果为 nil 则使用默认选项。
 
 返回:
   - 文件名数组。
   - 错误信息。
 */
-func (f *Filter) GetFiles(root string, recursive bool) (*[]string, error) {
+func (f *Filter) GetFiles(root string, option *WalkOption) (*[]string, error) {
 	// 遍历目录可能获得多个文件，为避免过多的对数组进行扩展，预分配空间。
 	// 也不必过大，因为毕竟有时返回数量也较小。。
 	result := make([]string, 0, 1000)
 
-	err := f.GetEachFile(root, recursive, func(path string, info os.FileInfo) error {
+	err := f.GetEachFile(root, option, func(path string, info os.FileInfo) error {
 		result = append(result, path)
 		return nil
 	})
