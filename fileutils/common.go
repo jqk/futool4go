@@ -86,6 +86,7 @@ CopyDir copies the directory and its contents from the source path to the target
 Parameters:
   - source: the source path of the directory to be copied.
   - target: the target path where the directory and its contents will be copied to.
+  - option: the scan options. if nil, the default options will be used.
 
 Returns:
   - an error if any occurred during the copy process.
@@ -95,13 +96,21 @@ CopyDir 复制目录。包含其下的文件和子目录。
 参数:
   - source: 要复制的源路径。
   - target: 要复制的目标路径。
+  - option: 扫描选项。如果为 nil 则使用默认选项。
 
 返回:
   - 错误信息。
 */
-func CopyDir(source, target string) error {
+func CopyDir(source, target string, option *WalkOption) error {
+	if option == nil { // 保证 option 不为 nil。
+		option = NewWalkOption()
+	}
+
 	return filepath.Walk(source, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
+			if option.PathErrorHandler != nil {
+				return option.PathErrorHandler(path, info, err)
+			}
 			return err
 		}
 		// 按相同的目录结构在 target 下创建目录
@@ -111,7 +120,18 @@ func CopyDir(source, target string) error {
 		}
 
 		abspath := filepath.Join(target, relPath)
+		isSubDir := false
+
 		if info.IsDir() {
+			if !option.Recursive {
+				// 第一次到达这里，必然是整个函数的参数 dir 目录，所以 isSubDir 为 false。
+				if isSubDir {
+					return filepath.SkipAll
+				}
+				// 以后是子目录了，所以设置 isSubDir 为 true。
+				isSubDir = true
+			}
+
 			os.MkdirAll(abspath, os.ModePerm)
 		} else {
 			// 复制文件
