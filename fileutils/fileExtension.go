@@ -73,11 +73,21 @@ func NewFileExtension(extension string) *FileExtension {
 	return &FileExtension{Name: extension, Count: 0, Size: 0, key: strings.ToLower(extension)}
 }
 
+/*
+WalkExtensionOption defines the options for walk through a path when scanning file extensions.
+*/
 type WalkExtensionOption struct {
 	WalkOption
-	CaseSensitive bool
+	CaseSensitive bool // whether to distinguish case for extensions
 }
 
+/*
+NewWalkExtensionOption creates a new WalkExtensionOption with scan directory recursively,
+bypass permission denied error and case insensitive for extensions.
+
+NewWalkExtensionOption 创建默认的 WalkExtensionOption。
+包含递归扫描目录、跳过没有权限的文件及目录，以及扩展名大小写不敏感。
+*/
 func NewWalkExtensionOption() *WalkExtensionOption {
 	return &WalkExtensionOption{
 		WalkOption: WalkOption{
@@ -93,7 +103,7 @@ GetFileExtensions scans and collects extension information of all files under th
 
 Parameters:
   - path: Path to be scanned.
-  - caseSensitive: Whether to distinguish case for extensions.
+  - option: the scan options. if nil, the default options will be used.
   - consumer: This function will be invoked whenever a new file or directory is processed to notify the caller. Can be nil.
 
 Returns:
@@ -104,7 +114,7 @@ GetFileExtensions 扫描并统计给定路径下所有文件的扩展名信息�
 
 参数:
   - path: 待扫描的路径。
-  - caseSensitive: 扩展名是否区分大小写。
+  - option: 扫描选项。如果为 nil 则使用默认选项。
   - consumer: 每处理一个新的文件或目录都将尝试调用该函数，从而通知调用者。可为 nil。
 
 返回:
