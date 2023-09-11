@@ -115,5 +115,5 @@ func TestGetFiles(t *testing.T) {
 
 	result, err := filter.GetFiles(testPath, option)
 	assert.Nil(t, err)
-	assert.Equal(t, 5, len(*result))
+	assert.Equal(t, 5, len(result))
 }

@@ -148,7 +148,7 @@ GetFiles 返回所有给定目录下符合过滤条件的文件名。
   - 文件名数组。
   - 错误信息。
 */
-func (f *Filter) GetFiles(root string, option *WalkOption) (*[]string, error) {
+func (f *Filter) GetFiles(root string, option *WalkOption) ([]string, error) {
 	// 遍历目录可能获得多个文件，为避免过多的对数组进行扩展，预分配空间。
 	// 也不必过大，因为毕竟有时返回数量也较小。。
 	result := make([]string, 0, 1000)
@@ -162,7 +162,7 @@ func (f *Filter) GetFiles(root string, option *WalkOption) (*[]string, error) {
 		return nil, err
 	}
 
-	return &result, nil
+	return result, nil
 }
 
 /*
@@ -263,16 +263,16 @@ func (f *Filter) Validate() error {
 		return errors.New("Filter.MaxFileSize must be greater than or equal to Filter.MinFileSize")
 	}
 
-	if exts, err := validateExtensions(&f.Exclude, f.CaseSensitive); err != nil {
+	if exts, err := validateExtensions(f.Exclude, f.CaseSensitive); err != nil {
 		return err
 	} else {
-		f.Exclude = *exts
+		f.Exclude = exts
 	}
 
-	if exts, err := validateExtensions(&f.Include, f.CaseSensitive); err != nil {
+	if exts, err := validateExtensions(f.Include, f.CaseSensitive); err != nil {
 		return err
 	} else {
-		f.Include = *exts
+		f.Include = exts
 	}
 
 	if len(f.Include) == 0 {
@@ -282,11 +282,11 @@ func (f *Filter) Validate() error {
 	return nil
 }
 
-func validateExtensions(exts *[]string, caseSensitive bool) (*[]string, error) {
+func validateExtensions(exts []string, caseSensitive bool) ([]string, error) {
 	// 使用 map 是为了过滤掉相同的扩展名。
-	extMap := make(map[string]bool, len(*exts))
+	extMap := make(map[string]bool, len(exts))
 
-	for _, ext := range *exts {
+	for _, ext := range exts {
 		ext = strings.TrimSpace(ext)
 		if !caseSensitive {
 			ext = strings.ToLower(ext)
@@ -306,7 +306,7 @@ func validateExtensions(exts *[]string, caseSensitive bool) (*[]string, error) {
 	}
 
 	sort.Strings(result)
-	return &result, nil
+	return result, nil
 }
 
 func matchPattern(pattern string, filename string, ext string) bool {
