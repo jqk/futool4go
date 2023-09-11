@@ -8,10 +8,25 @@ import (
 
 /*
 WalkOption defines the options for walk through a path.
-See [NewWalkOption] for default details.
+See [NewWalkOption] for default settings.
 */
 type WalkOption struct {
-	// whether scan the directory recursively. default is true.
+	/*
+		whether scan the directory recursively. It is called indirectly like this:
+
+		filepath.Walk(source, func(path string, info os.FileInfo, err error) error {
+			....
+
+			if info.IsDir() {
+				if option.ShouldQuitForNonRecursive() {
+					return filepath.SkipAll
+				}
+
+				....
+			｝
+			....
+		})
+	*/
 	Recursive bool
 	/*
 		error hander when filepath.Walk encounters an error. It is only called like this:
@@ -28,6 +43,41 @@ type WalkOption struct {
 		}
 	*/
 	PathErrorHandler filepath.WalkFunc
+
+	isSubDir bool // 默认为 false。初始必须为 false。
+}
+
+/*
+ShouldQuitForNonRecursive returns true if the current path should be skipped.
+
+It alwasy returns false when WalkOption.Recursive is true.
+
+When WalkOption.Recursive is false:
+  - The first call to the function returns false.
+  - Subsequent calls will all return true.
+
+ShouldQuitForNonRecursive 返回是否需要跳过当前路径。
+
+WalkOption.Recursive 为 true 时始终返回 false。
+
+WalkOption.Recursive 为 false:
+  - 第一次调用返回 false。
+  - 后续调用都返回 true。
+*/
+func (option *WalkOption) ShouldQuitForNonRecursive() bool {
+	if option.Recursive {
+		return false
+	}
+
+	// 第一次到达这里，必然是整个 filepath.Walk() 函数的起始目录，所以 isSubDir 为 false。
+	// 以后就是子目录了，再到这里，就是 true 了。
+	if option.isSubDir {
+		return true
+	}
+
+	// 以后到达这里都是子目录了，所以设置 isSubDir 为 true。
+	option.isSubDir = true
+	return false
 }
 
 /*
@@ -37,15 +87,21 @@ NewWalkOption 创建默认的 WalkOption。包含递归扫描目录及跳过没�
 */
 func NewWalkOption() *WalkOption {
 	return &WalkOption{
-		Recursive: true,
-		PathErrorHandler: func(path string, info os.FileInfo, err error) error {
-			// 仅在 err 不为 nil 时被调用，所以不必检查该值。
-			if os.IsPermission(err) {
-				return nil // 跳过没有权限的文件及目录。
-			}
-			return err
-		},
+		Recursive:        true,
+		PathErrorHandler: SkipPermissionError,
 	}
+}
+
+/*
+SkipPermissionError is an example for WalkOption.PathErrorHandler.
+It is used for skipping permission denied error.
+*/
+func SkipPermissionError(path string, info os.FileInfo, err error) error {
+	// 仅在 err 不为 nil 时被调用，所以不必检查该值。
+	if os.IsPermission(err) {
+		return nil // 跳过没有权限的文件及目录。
+	}
+	return err
 }
 
 /*
@@ -120,16 +176,10 @@ func CopyDir(source, target string, option *WalkOption) error {
 		}
 
 		abspath := filepath.Join(target, relPath)
-		isSubDir := false
 
 		if info.IsDir() {
-			if !option.Recursive {
-				// 第一次到达这里，必然是整个函数的参数 dir 目录，所以 isSubDir 为 false。
-				if isSubDir {
-					return filepath.SkipAll
-				}
-				// 以后是子目录了，所以设置 isSubDir 为 true。
-				isSubDir = true
+			if option.ShouldQuitForNonRecursive() {
+				return filepath.SkipAll
 			}
 
 			os.MkdirAll(abspath, os.ModePerm)
@@ -194,7 +244,7 @@ func GetDirStatistics(dir string, option *WalkOption) (stat *DirStatistics, err 
 	}
 
 	stat = &DirStatistics{}
-	isSubDir := false
+	// isSubDir := false
 
 	err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -205,13 +255,8 @@ func GetDirStatistics(dir string, option *WalkOption) (stat *DirStatistics, err 
 		}
 
 		if info.IsDir() {
-			if !option.Recursive {
-				// 第一次到达这里，必然是整个函数的参数 dir 目录，所以 isSubDir 为 false。
-				if isSubDir {
-					return filepath.SkipAll
-				}
-				// 以后是子目录了，所以设置 isSubDir 为 true。
-				isSubDir = true
+			if option.ShouldQuitForNonRecursive() {
+				return filepath.SkipAll
 			}
 
 			stat.DirCount++
