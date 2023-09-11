@@ -9,7 +9,7 @@ import (
 )
 
 /*
-ChecksumCalculator defines function type that calculates the checksum. It only needs to calculate the checksum for the given byte array.
+ChecksumCalculateFunc defines function type that calculates the checksum. It only needs to calculate the checksum for the given byte array.
 
 Parameters:
   - the bytes to be caculated.
@@ -18,7 +18,7 @@ Returns:
   - the count of byte is being calculated.
   - an error if anything wrong during calculating the checksum.
 
-ChecksumCalculator 定义了执行检验和计算的函数类型。它只需计算给定的字节数组的校验和。
+ChecksumCalculateFunc 定义了执行检验和计算的函数类型。它只需计算给定的字节数组的校验和。
 
 参数:
   - 待计算的字节数组。
@@ -27,10 +27,10 @@ ChecksumCalculator 定义了执行检验和计算的函数类型。它只需计�
   - 计算的字节数。
   - 错误信息。
 */
-type ChecksumCalculator func([]byte) (int, error)
+type ChecksumCalculateFunc func([]byte) (int, error)
 
 /*
-HeaderChecksumReadyHandler defines the function type that is called after the header checksum calculation is completed.
+HeaderChecksumReadyFunc defines the function type that is called after the header checksum calculation is completed.
 It is usually used to perform operations like saving the header checksum.
 
 Parameters:
@@ -41,7 +41,7 @@ Parameters:
 Returns:
   - an error if anything wrong during the calculation.
 
-HeaderChecksumReadyHandler 定义了在文件头部校验值计算完成后被调用的函数类型。一般用于执行保存文件头部校验和之类的操作。
+HeaderChecksumReadyFunc 定义了在文件头部校验值计算完成后被调用的函数类型。一般用于执行保存文件头部校验和之类的操作。
 
 参数:
   - 当前正在处理的文件信息。
@@ -50,10 +50,10 @@ HeaderChecksumReadyHandler 定义了在文件头部校验值计算完成后被�
 返回：
   - 错误信息。
 */
-type HeaderChecksumReadyHandler func(os.FileInfo, bool) error
+type HeaderChecksumReadyFunc func(os.FileInfo, bool) error
 
 /*
-FullChecksumReadyHandler defines function type that is called after the full file checksum is calculated.
+FullChecksumReadyFunc defines function type that is called after the full file checksum is calculated.
 
 Parameters:
   - the os.FileInfo of the file.
@@ -61,7 +61,7 @@ Parameters:
 Returns:
   - an error if anything wrong during calculation.
 
-FullChecksumReadyHandler 定义了在整个文件的完整校验值计算后被调用的函数类型。
+FullChecksumReadyFunc 定义了在整个文件的完整校验值计算后被调用的函数类型。
 
 参数:
   - 当前正在处理的文件信息。
@@ -69,7 +69,7 @@ FullChecksumReadyHandler 定义了在整个文件的完整校验值计算后被�
 返回：
   - 错误信息。
 */
-type FullChecksumReadyHandler func(os.FileInfo) error
+type FullChecksumReadyFunc func(os.FileInfo) error
 
 /*
 GetFileChecksum calculates the checksum for a file. This function is responsible for file operations,
@@ -108,9 +108,9 @@ func GetFileChecksum[T int | []byte](
 	filename string,
 	headerSize int,
 	buf T,
-	calculator ChecksumCalculator,
-	headerReadyHandler HeaderChecksumReadyHandler,
-	fullReadyHandler FullChecksumReadyHandler,
+	calculator ChecksumCalculateFunc,
+	headerReadyHandler HeaderChecksumReadyFunc,
+	fullReadyHandler FullChecksumReadyFunc,
 ) error {
 
 	buffer := getBuffer(buf)
@@ -175,18 +175,15 @@ func GetFileChecksum[T int | []byte](
 		}
 	}
 
-	// 到达此处时，fullReadyHandler 必然不为 nil。
-	// 继续读取文件剩余部分，计算整体校验和。
+	// 到达此处时，fullReadyHandler 必然不为 nil。继续读取文件剩余部分，计算整体校验和。
 	for {
 		readCount, err = reader.Read(buffer)
 		if err != nil {
-			if err != io.EOF {
-				// 说明确实有错误，不是读到结尾了，中断处理。
+			if err != io.EOF { // 说明确实有错误，不是读到结尾了，中断处理。
 				return err
 			}
 
-			// 读到结尾了，处理整体校验和。
-			return fullReadyHandler(info)
+			return fullReadyHandler(info) // 读到结尾了，处理整体校验和。
 		}
 
 		if _, err = calculator(buffer[:readCount]); err != nil {
@@ -210,9 +207,9 @@ func getBuffer[T int | []byte](buf T) []byte {
 func validateArguments(
 	headerSize int,
 	bufferSize int,
-	calculator ChecksumCalculator,
-	headerReadyHandler HeaderChecksumReadyHandler,
-	fullReadyHandler FullChecksumReadyHandler,
+	calculator ChecksumCalculateFunc,
+	headerReadyHandler HeaderChecksumReadyFunc,
+	fullReadyHandler FullChecksumReadyFunc,
 ) error {
 	if headerReadyHandler == nil && fullReadyHandler == nil {
 		return errors.New("headerReadyHandler and fullReadyHandler must not be nil at the same time")

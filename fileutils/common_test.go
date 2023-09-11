@@ -12,7 +12,7 @@ func TestGetDirStatisticsIncludeSubDir(t *testing.T) {
 
 	assert.Nil(t, err)
 	assert.Equal(t, 3, stat.DirCount)
-	assert.Equal(t, 8, stat.FileCount)
+	assert.Equal(t, 9, stat.FileCount)
 	assert.Equal(t, int64(368), stat.TotalSize)
 }
 

@@ -173,9 +173,7 @@ func GetFileExtensions(path string, option *WalkExtensionOption, consumer FileEx
 		return nil
 	})
 
-	if outerErr == filepath.SkipAll || outerErr == filepath.SkipDir {
-		outerErr = nil
-	}
+	outerErr = FilterFilePathSkipErrors(outerErr)
 	if outerErr != nil {
 		return nil, outerErr
 	}

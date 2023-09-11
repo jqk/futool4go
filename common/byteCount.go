@@ -32,7 +32,7 @@ ToSizeString 将字节数转换为正确单位(KB, MB, GB, 或 TB)的字符串�
 
 参数:
 	- size: 字节数。
-	- precision: 精度。范围 0 到 9，默认为 3。
+	- precision: 精度。范围 0 到 9，默认为 3。超出范围则使用默认值。
 
 返回:
 	- 格式化后的字符串。
@@ -43,7 +43,7 @@ func ToSizeString[T ByteCount](size T, precision ...int) string {
 	if len(precision) > 0 {
 		p = precision[0]
 		if p < 0 || p > 9 {
-			panic("invalid precision, must be between 0 and 9")
+			p = 3
 		}
 	}
 

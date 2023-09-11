@@ -32,7 +32,7 @@ type Filter struct {
 }
 
 /*
-MatchedFileHandler is a function type that receives and processes filtered files.
+FileMatchedFunc is a function type that receives and processes filtered files.
 
 Parameters:
   - path: Path of the file that meets the filter condition.
@@ -41,7 +41,7 @@ Parameters:
 Returns:
   - an error if any, or filepath.SkipDir and filepath.SkipAll to terminate scan.
 
-MatchedFileHandler 是一个函数类型，它接收并处理过滤后文件。
+FileMatchedFunc 是一个函数类型，它接收并处理匹配的文件。
 
 参数:
   - path: 符合过滤条件的文件路径。
@@ -50,7 +50,7 @@ MatchedFileHandler 是一个函数类型，它接收并处理过滤后文件。
 返回:
   - 错误信息，或者 filepath.SkipDir 及 filepath.SkipAll 中断处理。
 */
-type MatchedFileHandler func(path string, info os.FileInfo) error
+type FileMatchedFunc func(path string, info os.FileInfo) error
 
 /*
 IsRefusedReason checks if the given error is one of the predefined refused reasons.
@@ -95,11 +95,12 @@ GetEachFile 扫描指定的目录，并调用 [FilteredFileHandler] 处理每个
 返回:
   - 错误信息。
 */
-func (f *Filter) GetEachFile(root string, option *WalkOption, handler MatchedFileHandler) error {
+func (f *Filter) GetEachFile(root string, option *WalkOption, handler FileMatchedFunc) error {
 	if err := f.Validate(); err != nil { // 先保证 Filter 中的配置项有效。
 		return err
-	}
-	if option == nil { // 保证 option 不为 nil。
+	} else if handler == nil {
+		return errors.New("handler cannot be nil")
+	} else if option == nil { // 保证 option 不为 nil。
 		option = NewWalkOption()
 	}
 
@@ -123,11 +124,7 @@ func (f *Filter) GetEachFile(root string, option *WalkOption, handler MatchedFil
 		return err
 	})
 
-	if walkErr == filepath.SkipAll || walkErr == filepath.SkipDir {
-		walkErr = nil
-	}
-
-	return walkErr
+	return FilterFilePathSkipErrors(walkErr)
 }
 
 /*

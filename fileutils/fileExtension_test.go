@@ -16,13 +16,13 @@ func TestGetExtensionsWithoutConsumer(t *testing.T) {
 	extensions, err := GetFileExtensions("../test-data/fileutils/extension", option, nil)
 	assert.Nil(t, err)
 	assert.NotNil(t, extensions)
-	assert.Equal(t, 7, len(extensions))
+	assert.Equal(t, 8, len(extensions))
 
 	option.CaseSensitive = false
 	extensions, err = GetFileExtensions("../test-data/fileutils/extension", option, nil)
 	assert.Nil(t, err)
 	assert.NotNil(t, extensions)
-	assert.Equal(t, 3, len(extensions))
+	assert.Equal(t, 4, len(extensions))
 }
 
 func TestGetExtensionsWithConsumer(t *testing.T) {
@@ -52,7 +52,7 @@ func TestGetExtensionsWithConsumer(t *testing.T) {
 
 	assert.Nil(t, err)
 	assert.NotNil(t, extensions)
-	assert.Equal(t, 6, len(extensions))
+	assert.Equal(t, 7, len(extensions))
 
 	extensions, err = GetFileExtensions("../test-data/fileutils/extension", option,
 		func(path string, info os.FileInfo, extension *FileExtension) error {
@@ -67,7 +67,7 @@ func TestGetExtensionsWithConsumer(t *testing.T) {
 
 	assert.Nil(t, err)
 	assert.NotNil(t, extensions)
-	assert.Equal(t, 5, len(extensions))
+	assert.Equal(t, 6, len(extensions))
 }
 
 func TestSortExtensions(t *testing.T) {

@@ -273,9 +273,17 @@ func GetDirStatistics(dir string, option *WalkOption) (stat *DirStatistics, err 
 		return nil
 	})
 
-	if err == filepath.SkipAll || err == filepath.SkipDir {
-		err = nil
-	}
+	return stat, FilterFilePathSkipErrors(err)
+}
 
-	return stat, err
+/*
+FilterFilePathSkipErrors returns nil if the error is SkipAll, SkipDir or nil. Otherwise, the given error is returned.
+
+FilterFilePathSkipErrors 如果错误为 SkipAll、SkipDir 或 nil 则返回 nil；否则，直接返回给定的错误参数。
+*/
+func FilterFilePathSkipErrors(err error) error {
+	if err == filepath.SkipAll || err == filepath.SkipDir {
+		return nil
+	}
+	return err
 }
