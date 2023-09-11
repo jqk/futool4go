@@ -111,11 +111,13 @@ func GetFileExtensions(path string, caseSensitive bool, consumer FileExtensionCo
 
 	outerErr = filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
+			if os.IsPermission(err) {
+				return nil // 没有权限则跳过。
+			}
 			return err
 		} else if info.IsDir() {
 			if consumer != nil {
-				// 通知外部调用者。
-				return consumer(path, info, nil)
+				return consumer(path, info, nil) // 将开始处理新目录通知外部调用者。
 			}
 			return nil
 		}
@@ -126,16 +128,14 @@ func GetFileExtensions(path string, caseSensitive bool, consumer FileExtensionCo
 		}
 
 		if _, ok := extMap[ext]; !ok {
-			// 该扩展名第一次出现，创建对象。
-			extMap[ext] = NewFileExtension(ext)
+			extMap[ext] = NewFileExtension(ext) // 该扩展名第一次出现，创建对象。
 		}
 
 		extMap[ext].Count++
 		extMap[ext].Size += info.Size()
 
 		if consumer != nil {
-			// 通知外部调用者。
-			return consumer(path, info, extMap[ext])
+			return consumer(path, info, extMap[ext]) // 将处理新文件通知外部调用者。
 		}
 
 		return nil
