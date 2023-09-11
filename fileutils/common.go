@@ -8,10 +8,26 @@ import (
 
 /*
 WalkOption defines the options for walk through a path.
+See [NewWalkOption] for default details.
 */
 type WalkOption struct {
-	Recursive        bool              // whether scan the directory recursively. default is true.
-	PathErrorHandler filepath.WalkFunc // error hander when filepath.Walk encounters an error.
+	// whether scan the directory recursively. default is true.
+	Recursive bool
+	/*
+		error hander when filepath.Walk encounters an error. It is only called like this:
+
+		filepath.Walk(source, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				if option.PathErrorHandler != nil {
+					return option.PathErrorHandler(path, info, err)
+				}
+				return err
+			}
+
+			....
+		}
+	*/
+	PathErrorHandler filepath.WalkFunc
 }
 
 /*
@@ -20,9 +36,10 @@ NewWalkOption creates a new WalkOption with scan directory recursively and bypas
 NewWalkOption 创建默认的 WalkOption。包含递归扫描目录及跳过没有权限的文件及目录。
 */
 func NewWalkOption() *WalkOption {
-	return &WalkOption{ // 默认忽略无权限的文件及目录，并且遍历子目录。
+	return &WalkOption{
 		Recursive: true,
 		PathErrorHandler: func(path string, info os.FileInfo, err error) error {
+			// 仅在 err 不为 nil 时被调用，所以不必检查该值。
 			if os.IsPermission(err) {
 				return nil // 跳过没有权限的文件及目录。
 			}
@@ -135,24 +152,20 @@ GetDirStatistics returns the statistics of a directory.
 
 Parameters:
   - dir: the directory path.
-  - includeSubDir: whether to include sub directories. default is true.
+  - option: the scan options. if nil, the default options will be used.
 
 Returns:
-  - the number of directories.
-  - the number of files.
-  - the size of the directory.
+  - the statistics of the directory.
   - an error if any occurred during the process.
 
 GetDirStatistics 返回目录统计信息。
 
 参数:
   - dir: 目录路径。
-  - includeSubDir: 是否包含子目录。默认为 true。
+  - option: 扫描选项。如果为 nil 则使用默认选项。
 
 返回:
-  - 目录数量。
-  - 文件数量。
-  - 目录整体字节大小。
+  - 目录统计信息。
   - 错误信息。
 */
 func GetDirStatistics(dir string, option *WalkOption) (stat *DirStatistics, err error) {
