@@ -7,6 +7,31 @@ import (
 )
 
 /*
+WalkOption defines the options for walk through a path.
+*/
+type WalkOption struct {
+	Recursive        bool              // whether scan the directory recursively. default is true.
+	PathErrorHandler filepath.WalkFunc // error hander when filepath.Walk encounters an error.
+}
+
+/*
+NewWalkOption creates a new WalkOption with scan directory recursively and bypass permission denied error.
+
+NewWalkOption 创建默认的 WalkOption。包含递归扫描目录及跳过没有权限的文件及目录。
+*/
+func NewWalkOption() *WalkOption {
+	return &WalkOption{ // 默认忽略无权限的文件及目录，并且遍历子目录。
+		Recursive: true,
+		PathErrorHandler: func(path string, info os.FileInfo, err error) error {
+			if os.IsPermission(err) {
+				return nil // 跳过没有权限的文件及目录。
+			}
+			return err
+		},
+	}
+}
+
+/*
 FileExists checks if a file or directory exists.
 
 Parameters:
@@ -97,38 +122,12 @@ func CopyDir(source, target string) error {
 }
 
 /*
-GetDirSize returns the size of a directory.
-
-Parameters:
-  - dir: the directory path.
-
-Returns:
-  - the size of the directory.
-  - an error if any occurred during the process.
-
-GetDirSize 返回目录的大小。
-
-参数:
-  - dir: 目录路径。
-
-返回:
-  - 目录大小。
-  - 错误信息。
+DirStatistics defines the statistics of a directory.
 */
-func GetDirSize(dir string) (int64, error) {
-	var size int64 = 0
-
-	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if !info.IsDir() {
-			size += info.Size()
-		}
-		return nil
-	})
-
-	return size, err
+type DirStatistics struct {
+	DirCount  int
+	FileCount int
+	TotalSize int64
 }
 
 /*
@@ -156,22 +155,24 @@ GetDirStatistics 返回目录统计信息。
   - 目录整体字节大小。
   - 错误信息。
 */
-func GetDirStatistics(dir string, includeSubDir ...bool) (dirCount int, fileCount int, size int64, err error) {
-	// 未指定 includeSubDir 参数时，默认为 true。指定多个参数时也只有第一个有效。
-	include := true
-	if len(includeSubDir) > 0 {
-		include = includeSubDir[0]
+func GetDirStatistics(dir string, option *WalkOption) (stat *DirStatistics, err error) {
+	if option == nil { // 保证 option 不为 nil。
+		option = NewWalkOption()
 	}
 
+	stat = &DirStatistics{}
 	isSubDir := false
 
 	err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
+			if option.PathErrorHandler != nil {
+				return option.PathErrorHandler(path, info, err)
+			}
 			return err
 		}
 
 		if info.IsDir() {
-			if !include {
+			if !option.Recursive {
 				// 第一次到达这里，必然是整个函数的参数 dir 目录，所以 isSubDir 为 false。
 				if isSubDir {
 					return filepath.SkipAll
@@ -180,14 +181,14 @@ func GetDirStatistics(dir string, includeSubDir ...bool) (dirCount int, fileCoun
 				isSubDir = true
 			}
 
-			dirCount++
+			stat.DirCount++
 		} else {
-			fileCount++
-			size += info.Size()
+			stat.FileCount++
+			stat.TotalSize += info.Size()
 		}
 
 		return nil
 	})
 
-	return dirCount, fileCount, size, err
+	return stat, err
 }
