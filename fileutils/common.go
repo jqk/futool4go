@@ -162,7 +162,7 @@ func CopyDir(source, target string, option *WalkOption) error {
 		option = NewWalkOption()
 	}
 
-	return filepath.Walk(source, func(path string, info os.FileInfo, err error) error {
+	walkErr := filepath.Walk(source, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			if option.PathErrorHandler != nil {
 				return option.PathErrorHandler(path, info, err)
@@ -206,6 +206,12 @@ func CopyDir(source, target string, option *WalkOption) error {
 
 		return nil
 	})
+
+	if walkErr == filepath.SkipAll || walkErr == filepath.SkipDir {
+		walkErr = nil
+	}
+
+	return walkErr
 }
 
 /*
@@ -244,7 +250,6 @@ func GetDirStatistics(dir string, option *WalkOption) (stat *DirStatistics, err 
 	}
 
 	stat = &DirStatistics{}
-	// isSubDir := false
 
 	err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -267,6 +272,10 @@ func GetDirStatistics(dir string, option *WalkOption) (stat *DirStatistics, err 
 
 		return nil
 	})
+
+	if err == filepath.SkipAll || err == filepath.SkipDir {
+		err = nil
+	}
 
 	return stat, err
 }
