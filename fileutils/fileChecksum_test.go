@@ -12,6 +12,26 @@ var hashCrc32 = crc32.NewIEEE()
 var headerChecksum32, fullChecksum32 uint32
 var headerReadyHanderIsRun32, fullReadyHandlerIsRun32 bool
 
+func TestZeroLengthFile(t *testing.T) {
+	buffer := make([]byte, 10240)
+	reset32()
+
+	// 文件头和整个文件都要计算。
+	err := GetFileChecksum(
+		"../test-data/fileutils/extension/zero-length.properties",
+		2000,
+		buffer,
+		calculateChecksum32,
+		headerReadyHander32,
+		fullReadyHandler32,
+	)
+
+	assert.Nil(t, err)
+	assert.Equal(t, uint32(0), headerChecksum32)
+	assert.Equal(t, uint32(0), fullChecksum32)
+
+}
+
 func TestGetLargeFileChecksum(t *testing.T) {
 	buffer := make([]byte, 10240)
 	reset32()
@@ -29,8 +49,8 @@ func TestGetLargeFileChecksum(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, uint32(3222652411), headerChecksum32)
 	assert.Equal(t, uint32(3230993970), fullChecksum32)
-	assert.Equal(t, true, headerReadyHanderIsRun32)
-	assert.Equal(t, true, fullReadyHandlerIsRun32)
+	assert.True(t, headerReadyHanderIsRun32)
+	assert.True(t, fullReadyHandlerIsRun32)
 
 	reset32()
 

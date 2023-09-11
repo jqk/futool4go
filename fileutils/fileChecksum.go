@@ -135,7 +135,11 @@ func GetFileChecksum[T int | []byte](
 		// 根据规则，buffer 长度大于等于 headerSize。
 		// 所以使用 buffer 可能读出超过头部长度的数据。
 		readCount, err = io.ReadFull(reader, buffer)
-		if err != nil && err != io.ErrUnexpectedEOF {
+
+		// err != nil 说明有问题，但有可能是如下两个不是问题的情况：
+		// 1. 文件长度为 0，返回的是 io.EOF。
+		// 2. 文件长度小于预定义的头部长度，返回的是 io.ErrUnexpectedEOF。
+		if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
 			return err
 		}
 
