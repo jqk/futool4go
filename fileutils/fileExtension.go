@@ -73,6 +73,21 @@ func NewFileExtension(extension string) *FileExtension {
 	return &FileExtension{Name: extension, Count: 0, Size: 0, key: strings.ToLower(extension)}
 }
 
+type WalkExtensionOption struct {
+	WalkOption
+	CaseSensitive bool
+}
+
+func NewWalkExtensionOption() *WalkExtensionOption {
+	return &WalkExtensionOption{
+		WalkOption: WalkOption{
+			Recursive:        true,
+			PathErrorHandler: SkipPermissionError,
+		},
+		CaseSensitive: false,
+	}
+}
+
 /*
 GetFileExtensions scans and collects extension information of all files under the given path.
 
@@ -96,7 +111,7 @@ GetFileExtensions 扫描并统计给定路径下所有文件的扩展名信息�
   - 未经排序的文件扩展名信息数组。
   - 处理正常时为 nil，否则为错误信息。
 */
-func GetFileExtensions(path string, caseSensitive bool, consumer FileExtensionConsumer) ([]FileExtension, error) {
+func GetFileExtensions(path string, option *WalkExtensionOption, consumer FileExtensionConsumer) ([]FileExtension, error) {
 	pathExists, isDir, outerErr := FileExists(path)
 	if outerErr != nil {
 		return nil, outerErr
@@ -106,16 +121,23 @@ func GetFileExtensions(path string, caseSensitive bool, consumer FileExtensionCo
 		return nil, fmt.Errorf("path is not a directory: %s", path)
 	}
 
+	if option == nil { // 保证 option 不为 nil。
+		option = NewWalkExtensionOption()
+	}
+
 	// 使用 map 主要是为了合并同名扩展名，统计各个扩展名出现的次数。
 	extMap := make(map[string]*FileExtension)
 
 	outerErr = filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			if os.IsPermission(err) {
-				return nil // 没有权限则跳过。
+			if option.PathErrorHandler != nil {
+				return option.PathErrorHandler(path, info, err)
 			}
 			return err
 		} else if info.IsDir() {
+			if option.ShouldQuitForNonRecursive() {
+				return filepath.SkipAll
+			}
 			if consumer != nil {
 				return consumer(path, info, nil) // 将开始处理新目录通知外部调用者。
 			}
@@ -123,7 +145,7 @@ func GetFileExtensions(path string, caseSensitive bool, consumer FileExtensionCo
 		}
 
 		ext := filepath.Ext(path)
-		if !caseSensitive {
+		if !option.CaseSensitive {
 			ext = strings.ToLower(ext)
 		}
 
@@ -141,7 +163,10 @@ func GetFileExtensions(path string, caseSensitive bool, consumer FileExtensionCo
 		return nil
 	})
 
-	if outerErr != nil && outerErr != filepath.SkipAll && outerErr != filepath.SkipDir {
+	if outerErr == filepath.SkipAll || outerErr == filepath.SkipDir {
+		outerErr = nil
+	}
+	if outerErr != nil {
 		return nil, outerErr
 	}
 

@@ -10,19 +10,26 @@ import (
 )
 
 func TestGetExtensionsWithoutConsumer(t *testing.T) {
-	extensions, err := GetFileExtensions("../test-data/fileutils/extension", true, nil)
+	option := NewWalkExtensionOption()
+	option.CaseSensitive = true
+
+	extensions, err := GetFileExtensions("../test-data/fileutils/extension", option, nil)
 	assert.Nil(t, err)
 	assert.NotNil(t, extensions)
 	assert.Equal(t, 7, len(extensions))
 
-	extensions, err = GetFileExtensions("../test-data/fileutils/extension", false, nil)
+	option.CaseSensitive = false
+	extensions, err = GetFileExtensions("../test-data/fileutils/extension", option, nil)
 	assert.Nil(t, err)
 	assert.NotNil(t, extensions)
 	assert.Equal(t, 3, len(extensions))
 }
 
 func TestGetExtensionsWithConsumer(t *testing.T) {
-	extensions, err := GetFileExtensions("../test-data/fileutils/extension", true,
+	option := NewWalkExtensionOption()
+	option.CaseSensitive = true
+
+	extensions, err := GetFileExtensions("../test-data/fileutils/extension", option,
 		func(path string, info os.FileInfo, extension *FileExtension) error {
 			// 直接停止，所以结果为空数组。
 			return filepath.SkipAll
@@ -32,7 +39,7 @@ func TestGetExtensionsWithConsumer(t *testing.T) {
 	assert.NotNil(t, extensions)
 	assert.Equal(t, 0, len(extensions))
 
-	extensions, err = GetFileExtensions("../test-data/fileutils/extension", true,
+	extensions, err = GetFileExtensions("../test-data/fileutils/extension", option,
 		func(path string, info os.FileInfo, extension *FileExtension) error {
 			if extension != nil {
 				if strings.Index(path, "sub1") > 0 {
@@ -47,7 +54,7 @@ func TestGetExtensionsWithConsumer(t *testing.T) {
 	assert.NotNil(t, extensions)
 	assert.Equal(t, 6, len(extensions))
 
-	extensions, err = GetFileExtensions("../test-data/fileutils/extension", true,
+	extensions, err = GetFileExtensions("../test-data/fileutils/extension", option,
 		func(path string, info os.FileInfo, extension *FileExtension) error {
 			if extension == nil {
 				if strings.Index(path, "sub1") > 0 {
