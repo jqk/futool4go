@@ -5,7 +5,6 @@ import (
 	"errors"
 	"io"
 	"os"
-	"reflect"
 )
 
 /*
@@ -78,8 +77,7 @@ and only delegates the checksum calculation methods to the caller to simplify op
 Parameters:
   - filename: Name of the file to process.
   - headerSize: Length of the file header. Can be greater than or equal to the file length.
-  - buf: Buffer for reading the file. Can be []byte or int. The former directly provides the buffer for reuse;
-    the latter sets the buffer length for the function to create the buffer itself.
+  - buffer: Buffer for reading the file.
   - calculator: The function that performs the checksum calculation, cannot be nil.
   - headerReadyHandler: Callback function after the header checksum is calculated.
     Can be nil, indicating no need to calculate header checksum separately.
@@ -96,7 +94,7 @@ GetFileChecksum 计算文件的校验值。本函数负责文件操作，仅把�
 参数:
   - filename: 待处理的文件名。
   - headerSize: 文件头长度。可能大于等于文件长度。
-  - buf: 读取文件的缓冲区。可以是 []byte 或 int。前者直接提供缓冲区，达到复用目的；后者设置缓冲区长度，由函数自己创建缓冲区。
+  - buffer: 读取文件的缓冲区。
   - calculator: 执行校验和计算的函数，不能为 nil。
   - headerReadyHandler: 头部校验值计算完成后的回调函数。可为 nil，表示不需要单独计算头部校验值。不能与 fullReadyHandler 同时为 nil。
   - fullReadyHandler: 全部校验值计算完成后的回调函数。可为 nil，表示不需要完整校验值。不能与 headerReadyHandler 同时为 nil。
@@ -104,16 +102,15 @@ GetFileChecksum 计算文件的校验值。本函数负责文件操作，仅把�
 返回:
   - 错误信息。
 */
-func GetFileChecksum[T int | []byte](
+func GetFileChecksum(
 	filename string,
 	headerSize int,
-	buf T,
+	buffer []byte,
 	calculator ChecksumCalculateFunc,
 	headerReadyHandler HeaderChecksumReadyFunc,
 	fullReadyHandler FullChecksumReadyFunc,
 ) error {
 
-	buffer := getBuffer(buf)
 	if err := validateArguments(headerSize, len(buffer), calculator, headerReadyHandler, fullReadyHandler); err != nil {
 		return err
 	}
@@ -189,18 +186,6 @@ func GetFileChecksum[T int | []byte](
 		if _, err = calculator(buffer[:readCount]); err != nil {
 			return err
 		}
-	}
-}
-
-func getBuffer[T int | []byte](buf T) []byte {
-	switch v := reflect.ValueOf(buf); v.Kind() {
-	case reflect.Int:
-		return make([]byte, int(v.Int()))
-	case reflect.Slice:
-		return v.Slice(0, int(v.Len())).Bytes()
-	default:
-		// 不会执行到这里。
-		panic("T must be int or []byte")
 	}
 }
 

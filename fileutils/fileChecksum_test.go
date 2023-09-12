@@ -104,13 +104,14 @@ func TestGetLargeFileChecksum(t *testing.T) {
 }
 
 func TestGetSmallFileChecksum(t *testing.T) {
+	buffer := make([]byte, 10240)
 	reset32()
 
 	// 文件小于文件头的长度。
 	err := GetFileChecksum(
 		"../test-data/fileutils/filter/002.txt",
 		2000,
-		10240,
+		buffer,
 		calculateChecksum32,
 		headerReadyHander32,
 		fullReadyHandler32,
