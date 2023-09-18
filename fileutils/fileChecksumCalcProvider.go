@@ -10,11 +10,11 @@ import (
 //
 // See [ChecksumCalculateFunc], [HeaderChecksumReadyFunc] and [FullChecksumReadyFunc]
 // for details of ChecksumCalculator, HeaderReadyHandler and FullReadyHandler.
-type FileChecksumCalculationProvider[T any] interface {
-	Method() string                                // The digest algorithm name. Only for showing the information.
+type FileChecksumCalculationProvider interface {
+	Method() string                                // Can be any non-empty string. The digest algorithm name is suggested.
 	FileInfo() os.FileInfo                         // The file info of the file being processed. Valid when calculation is done.
-	HeaderChecksum() T                             // The checksum of the file header.
-	FullChecksum() T                               // The checksum of the whole file.
+	HeaderChecksum() []byte                        // The checksum of the file header.
+	FullChecksum() []byte                          // The checksum of the whole file.
 	IsHeaderChecksumReady() bool                   // Whether the header checksum is ready.
 	IsFullChecksumReady() bool                     // Whether the full checksum is ready.
 	ChecksumCalculator(buffer []byte) (int, error) // The function to calculate the checksum of the file segment.
@@ -31,9 +31,9 @@ Parameters:
   - filename: Name of the file to process.
   - headerSize: Length of the file header. Can be greater than or equal to the file length.
   - buffer: Buffer for reading the file.
-  - provider: The object that performs the checksum calculation, cannot be nil.
   - isNeedHeaderChecksum: If calculating header checksum is required. Cannot be false when isNeeeFullChecksum is false.
   - isNeeeFullChecksum: If calculating full checksum is required. Cannot be false when isNeedHeaderChecksum is false.
+  - provider: The object that performs the checksum calculation, cannot be nil.
 
 Returns:
   - an error if any of the arguments are invalid or an error occurs while calculating the checksum.
@@ -44,20 +44,20 @@ GetFileChecksum 计算文件的校验值。本函数负责文件操作，仅把�
   - filename: 待处理的文件名。
   - headerSize: 文件头长度。可能大于等于文件长度。
   - buffer: 读取文件的缓冲区。
-  - provider: 执行校验和计算的对象，不能为 nil。
   - isNeedHeaderChecksum: 是否需要头部校验值。不能与 isNeeeFullChecksum 同时为 false。
   - isNeeeFullChecksum: 是否需要完整校验值。不能与 isNeedHeaderChecksum 同时为 false。
+  - provider: 执行校验和计算的对象，不能为 nil。
 
 返回:
   - 错误信息。
 */
-func GetFileChecksumWithProvider[T any](
+func GetFileChecksumWithProvider(
 	filename string,
 	headerSize int,
 	buffer []byte,
-	provider FileChecksumCalculationProvider[T],
 	isNeedHeaderChecksum bool,
 	isNeeeFullChecksum bool,
+	provider FileChecksumCalculationProvider,
 ) error {
 	if provider == nil {
 		return errors.New("provider must not be nil")
@@ -85,90 +85,95 @@ CommonFileChecksumProvider implements the [FileChecksumCalculationProvider] inte
 
 CommonFileChecksumProvider 实现了 [FileChecksumCalculationProvider] 接口，用于计算校验值。
 */
-type CommonFileChecksumProvider[T any] struct {
+type CommonFileChecksumProvider struct {
 	method                string
 	fileInfo              os.FileInfo
-	headerChecksum        T
-	fullChecksum          T
+	headerChecksum        []byte
+	fullChecksum          []byte
 	isHeaderChecksumReady bool
 	isFullChecksumReady   bool
 	hash                  hash.Hash
-	sumFunc               func([]byte) T // the signature is from hash.Hash.Sum([]byte) []byte.
 }
 
 /*
-NewCommonFileChecksumProvider creates a new CommonFileChecksumProvider[T].
+NewCommonFileChecksumProvider creates a new CommonFileChecksumProvider object.
 
 Parameters:
   - method: The digest algorithm name.
   - hashInstance: The hash instance to use.
-  - sumFuncOfhashInstance: The function that get the sum of the calculation. It must be a function of the hashInstance object instance.
 
 Example:
 
-	// using crc32.
-	hash := crc32.NewIEEE()
-	f := func([]byte) uint32 {
-		return hash.Sum32()
-	}
+		// using crc32.
+		p := NewCommonFileChecksumProvider("crc32", crc32.NewIEEE())
 
-	p := NewCommonFileChecksumProvider[uint32]("crc32", hash, f)
+		err := GetFileChecksumWithProvider(
+			"../test-data/fileutils/filter/001.MD",
+			2000, buffer, false, true, p,
+		)
 
-	err := GetFileChecksumWithProvider[uint32](
-		"../test-data/fileutils/filter/001.MD",
-		2000, buffer, p, false, true,
-	)
-
-	if err == nil && p.IsHeaderChecksumReady() && p.HeaderChecksum() == 1234567 {
-		// Ok, here.
-	}
-
-	// or init like this, using crc64 with ISO table.
-	p := NewCommonFileChecksumProvider[uint64](func() (string, hash.Hash, func([]byte) uint64) {
-		hash := crc64.New(crc64.MakeTable(crc64.ISO))
-		f := func([]byte) uint64 {
-			return hash.Sum64()
+		if err == nil && p.IsHeaderChecksumReady() {
+			// Ok, here.
 		}
-		return "crc64.ISO", hash, f
-	}())
 
-	err := GetFileChecksumWithProvider[uint64](
-		"../test-data/fileutils/filter/001.MD",
-		2000, buffer, p, true, true,
-	)
+		// or using MD5
+		hash := md5.New()
+		p := NewCommonFileChecksumProvider("MD5", hash)
 
-	if err == nil && p.IsFullChecksumReady() && p.FullChecksum() == 1234567901234567 {
-		// Ok, here.
-	}
+		err := GetFileChecksumWithProvider[[]byte](
+			"../test-data/fileutils/filter/001.MD",
+			2000, buffer, p, true, true,
+		)
 
-	// or using MD5
-	hash := md5.New()
-	p := NewCommonFileChecksumProvider[[]byte]("MD5", hash, hash.Sum) // hash.Sum() meets the function signature already.
+		if err == nil && p.IsHeaderChecksumReady() && bytes.Equal(p.HeaderChecksum(), []byte{....}) {
+			// Ok, here
+		}
 
-	err := GetFileChecksumWithProvider[[]byte](
-		"../test-data/fileutils/filter/001.MD",
-		2000, buffer, p, true, true,
-	)
+		// or define your own type with additional prperties.
+	    type crc64Provider struct {
+	    	CommonFileChecksumProvider
+	    }
 
-	if err == nil && p.IsHeaderChecksumReady() && bytes.Equal(p.HeaderChecksum(), []byte{....}) {
-		// Ok, here
-	}
+	    func newCrc64Provider() *crc64Provider {
+	    	return &crc64Provider{
+	    		CommonFileChecksumProvider: CommonFileChecksumProvider{
+	    			method:                "crc64",
+	    			hash:                  crc64.New(crc64.MakeTable(crc64.ISO)),
+	    			headerChecksum:        nil,
+	    			fullChecksum:          nil,
+	    			isHeaderChecksumReady: false,
+	    			isFullChecksumReady:   false,
+	    		},
+	    	}
+	    }
 
-NewCommonFileChecksumProvider 创建一个新的 CommonFileChecksumProvider[T]。
+	    func (c *crc64Provider) HeaderChecksumValue() uint64 {
+	    	if c.isHeaderChecksumReady {
+	    		return binary.BigEndian.Uint64(c.headerChecksum)
+	    	}
+	    	return uint64(0)
+	    }
+
+	    func (c *crc64Provider) FullChecksumValue() uint64 {
+	    	if c.isFullChecksumReady {
+	    		return binary.BigEndian.Uint64(c.fullChecksum)
+	    	}
+	    	return uint64(0)
+	    }
+
+NewCommonFileChecksumProvider 创建一个 CommonFileChecksumProvider 对象。
 
 参数:
   - method: 哈希算法名称。
   - hashInstance: 使用的哈希实例。
-  - sumFuncOfhashInstance: 计算哈希值的函数。必须是 hashInstance 对象实例的函数。
 */
-func NewCommonFileChecksumProvider[T any](method string, hashInstance hash.Hash, sumFuncOfhashInstance func([]byte) T) *CommonFileChecksumProvider[T] {
-	result := &CommonFileChecksumProvider[T]{
+func NewCommonFileChecksumProvider(method string, hashInstance hash.Hash) *CommonFileChecksumProvider {
+	result := &CommonFileChecksumProvider{
 		method:                method,
 		fileInfo:              nil,
 		isHeaderChecksumReady: false,
 		isFullChecksumReady:   false,
 		hash:                  hashInstance,
-		sumFunc:               sumFuncOfhashInstance,
 	}
 
 	return result
@@ -177,7 +182,7 @@ func NewCommonFileChecksumProvider[T any](method string, hashInstance hash.Hash,
 // Method returns the digest algorithm name.
 //
 // Method 返回哈希算法名称。
-func (c *CommonFileChecksumProvider[T]) Method() string {
+func (c *CommonFileChecksumProvider) Method() string {
 	return c.method
 }
 
@@ -185,42 +190,46 @@ func (c *CommonFileChecksumProvider[T]) Method() string {
 // At this time, either IsHeaderChecksumReady() or IsFullChecksumReady() is true.
 //
 // FileInfo 返回所计算的文件信息。仅在校验值计算完成后有效。此时，IsHeaderChecksumReady() 或 IsFullChecksumReady() 为 true。
-func (c *CommonFileChecksumProvider[T]) FileInfo() os.FileInfo {
+func (c *CommonFileChecksumProvider) FileInfo() os.FileInfo {
 	return c.fileInfo
 }
 
 // HeaderChecksum returns the checksum of the file header. Only valid when the IsHeaderChecksumReady() is true.
 //
 // HeaderChecksum 返回文件头的校验值。仅当 IsHeaderChecksumReady() 返回 true 时有效。
-func (c *CommonFileChecksumProvider[T]) HeaderChecksum() T {
-	return c.headerChecksum
+func (c *CommonFileChecksumProvider) HeaderChecksum() []byte {
+	checksum := make([]byte, len(c.headerChecksum))
+	copy(checksum, c.headerChecksum)
+	return checksum
 }
 
 // FullChecksum returns the checksum of the whole file. Only valid when the IsFullChecksumReady() is true.
 //
 // FullChecksum 返回整个文件的校验值。仅当 IsFullChecksumReady() 返回 true 时有效。
-func (c *CommonFileChecksumProvider[T]) FullChecksum() T {
-	return c.fullChecksum
+func (c *CommonFileChecksumProvider) FullChecksum() []byte {
+	checksum := make([]byte, len(c.fullChecksum))
+	copy(checksum, c.fullChecksum)
+	return checksum
 }
 
 // IsHeaderChecksumReady returns true when the file header checksum is calculated.
-func (c *CommonFileChecksumProvider[T]) IsHeaderChecksumReady() bool {
+func (c *CommonFileChecksumProvider) IsHeaderChecksumReady() bool {
 	return c.isHeaderChecksumReady
 }
 
 // IsFullChecksumReady returns true when the whole file checksum is calculated.
-func (c *CommonFileChecksumProvider[T]) IsFullChecksumReady() bool {
+func (c *CommonFileChecksumProvider) IsFullChecksumReady() bool {
 	return c.isFullChecksumReady
 }
 
 // ChecksumCalculator calculates the checksum of the file segment.
-func (c *CommonFileChecksumProvider[T]) ChecksumCalculator(buffer []byte) (int, error) {
+func (c *CommonFileChecksumProvider) ChecksumCalculator(buffer []byte) (int, error) {
 	return c.hash.Write(buffer)
 }
 
 // HeaderReadyHandler handles the checksum calculation when header is calculated.
-func (c *CommonFileChecksumProvider[T]) HeaderReadyHandler(info os.FileInfo, fullIsReady bool) error {
-	c.headerChecksum = c.sumFunc(nil)
+func (c *CommonFileChecksumProvider) HeaderReadyHandler(info os.FileInfo, fullIsReady bool) error {
+	c.headerChecksum = c.hash.Sum(nil)
 	c.fileInfo = info
 	c.isHeaderChecksumReady = true
 
@@ -232,16 +241,17 @@ func (c *CommonFileChecksumProvider[T]) HeaderReadyHandler(info os.FileInfo, ful
 }
 
 // FullReadyHandler handles the checksum calculation when whole file is calculated.
-func (c *CommonFileChecksumProvider[T]) FullReadyHandler(info os.FileInfo) error {
-	c.fullChecksum = c.sumFunc(nil)
+func (c *CommonFileChecksumProvider) FullReadyHandler(info os.FileInfo) error {
+	c.fullChecksum = c.hash.Sum(nil)
 	c.fileInfo = info
 	c.isFullChecksumReady = true
 	return nil
 }
 
 // Reset resets all information for next calculation.
-func (c *CommonFileChecksumProvider[T]) Reset() {
+func (c *CommonFileChecksumProvider) Reset() {
 	c.hash.Reset()
 	c.isHeaderChecksumReady, c.isFullChecksumReady = false, false
+	c.headerChecksum, c.fullChecksum = nil, nil
 	c.fileInfo = nil
 }
